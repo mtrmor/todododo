@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "@supabase/ssr": "npm:@supabase/ssr@0.12.4",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.112.3"
+  },
+  "fmt": {
+    "lineWidth": 100,
+    "semiColons": true,
+    "singleQuote": true
+  }
+}

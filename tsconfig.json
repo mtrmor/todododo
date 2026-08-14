@@ -1,0 +1,27 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "noEmit": true,
+    "strict": true,
+    "types": ["node"],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@/assets/*": [
+        "./assets/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "supabase/functions"
+  ]
+}
