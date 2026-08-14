@@ -1,9 +1,8 @@
 import {
   createContext,
   use,
-  useCallback,
   useEffect,
-  useMemo,
+  useEffectEvent,
   useRef,
   useState,
   type PropsWithChildren,
@@ -32,45 +31,42 @@ export type AuthContextValue = Readonly<{
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function refreshSession(): Promise<SafeUser | null> {
+  return refreshSessionSerialized();
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [user, setUser] = useState<SafeUser | null>(null);
   const [csrfToken, setProviderCsrfToken] = useState<string | null>(null);
   const sessionRecoveryNeededRef = useRef(false);
 
-  const applySession = useCallback(
-    (session: Awaited<ReturnType<typeof authAdapter.getSession>>): SafeUser | null => {
-      sessionRecoveryNeededRef.current = false;
-      setUser(session.user);
-      setStatus(session.user ? "authenticated" : "anonymous");
-      setProviderCsrfToken(session.csrfToken);
-      setCsrfToken(session.csrfToken);
-      return session.user;
-    },
-    [],
-  );
+  function applySession(
+    session: Awaited<ReturnType<typeof authAdapter.getSession>>,
+  ): SafeUser | null {
+    sessionRecoveryNeededRef.current = false;
+    setUser(session.user);
+    setStatus(session.user ? "authenticated" : "anonymous");
+    setProviderCsrfToken(session.csrfToken);
+    setCsrfToken(session.csrfToken);
+    return session.user;
+  }
 
-  const loadSession = useCallback(
-    async (signal?: AbortSignal): Promise<SafeUser | null> => {
-      try {
-        const session = await authAdapter.getSession(signal);
-        return applySession(session);
-      } catch (error) {
-        if (!signal?.aborted) {
-          sessionRecoveryNeededRef.current = true;
-        }
-        throw error;
+  const loadSession = useEffectEvent(async (
+    signal?: AbortSignal,
+  ): Promise<SafeUser | null> => {
+    try {
+      const session = await authAdapter.getSession(signal);
+      return applySession(session);
+    } catch (error) {
+      if (!signal?.aborted) {
+        sessionRecoveryNeededRef.current = true;
       }
-    },
-    [applySession],
-  );
+      throw error;
+    }
+  });
 
-  const refreshSession = useCallback(
-    (): Promise<SafeUser | null> => refreshSessionSerialized(),
-    [],
-  );
-
-  useEffect(() => registerSessionRefresh(loadSession), [loadSession]);
+  useEffect(() => registerSessionRefresh(loadSession), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -92,7 +88,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [loadSession]);
+  }, []);
 
   useEffect(() => {
     if (
@@ -125,33 +121,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
       window.removeEventListener("online", retrySessionRecovery);
       document.removeEventListener("visibilitychange", retrySessionRecovery);
     };
-  }, [refreshSession]);
+  }, []);
 
-  const ensureWebCookieMutationReady = useCallback(async (): Promise<void> => {
+  async function ensureWebCookieMutationReady(): Promise<void> {
     if (process.env.EXPO_OS === "web") {
       await ensureCsrfTokenForCookieMutation();
     }
-  }, []);
+  }
 
-  const signIn = useCallback(
-    async (email: string, password: string): Promise<void> => {
-      await ensureWebCookieMutationReady();
-      await authAdapter.signIn(email, password);
-      await refreshSession();
-    },
-    [ensureWebCookieMutationReady, refreshSession],
-  );
+  async function signIn(email: string, password: string): Promise<void> {
+    await ensureWebCookieMutationReady();
+    await authAdapter.signIn(email, password);
+    await refreshSession();
+  }
 
-  const signUp = useCallback(
-    async (email: string, password: string): Promise<void> => {
-      await ensureWebCookieMutationReady();
-      await authAdapter.signUp(email, password);
-      await refreshSession();
-    },
-    [ensureWebCookieMutationReady, refreshSession],
-  );
+  async function signUp(email: string, password: string): Promise<void> {
+    await ensureWebCookieMutationReady();
+    await authAdapter.signUp(email, password);
+    await refreshSession();
+  }
 
-  const signOut = useCallback(async (): Promise<void> => {
+  async function signOut(): Promise<void> {
     await ensureWebCookieMutationReady();
     await authAdapter.signOut();
     setUser(null);
@@ -165,20 +155,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     } catch {
       // Sign-out already succeeded; a network failure must not restore local auth state.
     }
-  }, [ensureWebCookieMutationReady, refreshSession]);
+  }
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      status,
-      user,
-      csrfToken,
-      signIn,
-      signUp,
-      signOut,
-      refreshSession,
-    }),
-    [csrfToken, refreshSession, signIn, signOut, signUp, status, user],
-  );
+  const value: AuthContextValue = {
+    status,
+    user,
+    csrfToken,
+    signIn,
+    signUp,
+    signOut,
+    refreshSession,
+  };
 
   return <AuthContext value={value}>{children}</AuthContext>;
 }

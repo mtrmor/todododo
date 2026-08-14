@@ -10,8 +10,8 @@ import {
   X,
 } from "phosphor-react-native";
 import {
-  useCallback,
   useEffect,
+  useEffectEvent,
   useRef,
   useState,
   useSyncExternalStore,
@@ -118,11 +118,11 @@ export function SearchModule() {
     loadedCountRef.current = tasks.length;
   }, [tasks.length]);
 
-  const runSearch = useCallback(async (
+  async function runSearch(
     searchQuery: string,
     targetCount = PAGE_SIZE,
     preserveMissingPending = true,
-  ) => {
+  ) {
     const requestId = ++requestIdRef.current;
     controllerRef.current?.abort();
     const controller = new AbortController();
@@ -152,7 +152,9 @@ export function SearchModule() {
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
-  }, []);
+  }
+
+  const runSearchEffect = useEffectEvent(runSearch);
 
   useEffect(() => {
     const queryChanged = previousQueryRef.current !== debouncedQuery;
@@ -170,7 +172,7 @@ export function SearchModule() {
       ? PAGE_SIZE
       : Math.max(PAGE_SIZE, loadedCountRef.current);
     const timeout = setTimeout(
-      () => void runSearch(debouncedQuery, targetCount, !queryChanged),
+      () => void runSearchEffect(debouncedQuery, targetCount, !queryChanged),
       0,
     );
     return () => {
@@ -178,7 +180,7 @@ export function SearchModule() {
       requestIdRef.current += 1;
       controllerRef.current?.abort();
     };
-  }, [debouncedQuery, runSearch, tasksRevision]);
+  }, [debouncedQuery, tasksRevision]);
 
   useEffect(
     () => () => {
@@ -198,7 +200,7 @@ export function SearchModule() {
     }
     const refreshIfVisible = () => {
       if (document.visibilityState === "visible") {
-        void runSearch(
+        void runSearchEffect(
           debouncedQuery,
           Math.max(PAGE_SIZE, loadedCountRef.current),
         );
@@ -206,7 +208,7 @@ export function SearchModule() {
     };
     const handleOnline = () => {
       setOffline(false);
-      void runSearch(
+      void runSearchEffect(
         debouncedQuery,
         Math.max(PAGE_SIZE, loadedCountRef.current),
       );
@@ -224,19 +226,19 @@ export function SearchModule() {
       window.removeEventListener("offline", handleOffline);
       document.removeEventListener("visibilitychange", refreshIfVisible);
     };
-  }, [debouncedQuery, runSearch]);
+  }, [debouncedQuery]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
-        void runSearch(
+        void runSearchEffect(
           debouncedQuery,
           Math.max(PAGE_SIZE, loadedCountRef.current),
         );
       }
     });
     return () => subscription.remove();
-  }, [debouncedQuery, runSearch]);
+  }, [debouncedQuery]);
 
   async function loadMore() {
     if (!nextCursor || loadingMore) return;

@@ -8,7 +8,13 @@ import {
   WarningCircle,
   WifiSlash,
 } from "phosphor-react-native";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -97,7 +103,9 @@ export function TaskListModule({ title = "Inbox" }: TaskListModuleProps) {
     loadedCountRef.current = tasks.length;
   }, [tasks.length]);
 
-  const fetchTaskWindow = useCallback(async (mode: "initial" | "refresh") => {
+  async function fetchTaskWindow(
+    mode: "initial" | "refresh",
+  ) {
     const requestId = ++requestIdRef.current;
     controllerRef.current?.abort();
     const controller = new AbortController();
@@ -131,7 +139,9 @@ export function TaskListModule({ title = "Inbox" }: TaskListModuleProps) {
         setRefreshing(false);
       }
     }
-  }, []);
+  }
+
+  const fetchTaskWindowEffect = useEffectEvent(fetchTaskWindow);
 
   useEffect(() => {
     if (ignoredRevisionRef.current === tasksRevision) {
@@ -140,12 +150,14 @@ export function TaskListModule({ title = "Inbox" }: TaskListModuleProps) {
     }
 
     const timeout = setTimeout(() => {
-      void fetchTaskWindow(loadedCountRef.current === 0 ? "initial" : "refresh");
+      void fetchTaskWindowEffect(
+        loadedCountRef.current === 0 ? "initial" : "refresh",
+      );
     }, 0);
     return () => {
       clearTimeout(timeout);
     };
-  }, [fetchTaskWindow, tasksRevision]);
+  }, [tasksRevision]);
 
   useEffect(
     () => () => {
@@ -166,12 +178,12 @@ export function TaskListModule({ title = "Inbox" }: TaskListModuleProps) {
 
     const refreshIfVisible = () => {
       if (document.visibilityState === "visible") {
-        void fetchTaskWindow("refresh");
+        void fetchTaskWindowEffect("refresh");
       }
     };
     const handleOnline = () => {
       setOffline(false);
-      void fetchTaskWindow("refresh");
+      void fetchTaskWindowEffect("refresh");
     };
     const handleOffline = () => setOffline(true);
     const interval = window.setInterval(refreshIfVisible, ACTIVE_POLL_INTERVAL_MS);
@@ -188,14 +200,14 @@ export function TaskListModule({ title = "Inbox" }: TaskListModuleProps) {
       window.removeEventListener("offline", handleOffline);
       document.removeEventListener("visibilitychange", refreshIfVisible);
     };
-  }, [fetchTaskWindow]);
+  }, []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") void fetchTaskWindow("refresh");
+      if (state === "active") void fetchTaskWindowEffect("refresh");
     });
     return () => subscription.remove();
-  }, [fetchTaskWindow]);
+  }, []);
 
   async function loadMore() {
     if (!nextCursor || loadingMore) return;

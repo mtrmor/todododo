@@ -16,9 +16,8 @@ import {
 } from "phosphor-react-native";
 import { useRouter } from "expo-router";
 import {
-  useCallback,
   useEffect,
-  useMemo,
+  useEffectEvent,
   useRef,
   useState,
   useSyncExternalStore,
@@ -105,7 +104,7 @@ export function SidebarModule({
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const summaryControllerRef = useRef<AbortController | null>(null);
 
-  const refreshSummary = useCallback(async () => {
+  const refreshSummary = useEffectEvent(async () => {
     summaryControllerRef.current?.abort();
     const controller = new AbortController();
     summaryControllerRef.current = controller;
@@ -119,7 +118,7 @@ export function SidebarModule({
         setSummaryError(getErrorMessage(error, "Task progress is unavailable."));
       }
     }
-  }, []);
+  });
 
   useEffect(() => {
     const timeout = setTimeout(() => void refreshSummary(), 0);
@@ -127,7 +126,7 @@ export function SidebarModule({
       clearTimeout(timeout);
       summaryControllerRef.current?.abort();
     };
-  }, [refreshSummary, tasksRevision]);
+  }, [tasksRevision]);
 
   useEffect(() => {
     if (
@@ -153,19 +152,19 @@ export function SidebarModule({
       window.removeEventListener("online", refreshIfVisible);
       document.removeEventListener("visibilitychange", refreshIfVisible);
     };
-  }, [refreshSummary]);
+  }, []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") void refreshSummary();
     });
     return () => subscription.remove();
-  }, [refreshSummary]);
+  }, []);
 
-  const routeProgress = useMemo(() => {
-    if (summary.total === 0) return 0;
-    return Math.max(0, Math.min(1, summary.completed / summary.total));
-  }, [summary.completed, summary.total]);
+  const routeProgress =
+    summary.total === 0
+      ? 0
+      : Math.max(0, Math.min(1, summary.completed / summary.total));
 
   function navigate(route: SidebarRoute) {
     if (onNavigate) {

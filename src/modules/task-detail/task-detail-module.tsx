@@ -7,7 +7,7 @@ import {
   WarningCircle,
   X,
 } from "phosphor-react-native";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -76,13 +76,10 @@ export function TaskDetailModule() {
   const taskId = editing ? taskDialog.taskId : null;
   const narrow = width < 640;
   const canSave = !editing || loadedTaskId === taskId;
-  const dirty = useMemo(
-    () =>
-      values.title !== baseline.title ||
-      values.notes !== baseline.notes ||
-      values.dueDate !== baseline.dueDate,
-    [baseline, values],
-  );
+  const dirty =
+    values.title !== baseline.title ||
+    values.notes !== baseline.notes ||
+    values.dueDate !== baseline.dueDate;
 
   useEffect(() => {
     if (!visible) return;

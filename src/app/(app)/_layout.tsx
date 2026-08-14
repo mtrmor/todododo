@@ -6,7 +6,7 @@ import {
 import { TaskDetailModule } from "@/modules/task-detail";
 import { List, PathIcon } from "phosphor-react-native";
 import { type Href, Redirect, Slot, usePathname, useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -36,12 +36,12 @@ export default function AppLayout() {
 
   const mobile = width < 720;
   const compact = width >= 720 && width < 1100;
-  const activeRoute = useMemo<SidebarRoute>(() => {
-    const firstSegment = pathname.split("/").filter(Boolean)[0];
-    return SIDEBAR_ROUTES.has(firstSegment as SidebarRoute)
-      ? (firstSegment as SidebarRoute)
-      : "inbox";
-  }, [pathname]);
+  const firstSegment = pathname.split("/").filter(Boolean)[0];
+  const activeRoute: SidebarRoute = SIDEBAR_ROUTES.has(
+    firstSegment as SidebarRoute,
+  )
+    ? (firstSegment as SidebarRoute)
+    : "inbox";
 
   if (status === "loading") {
     return (
