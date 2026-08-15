@@ -12,6 +12,7 @@ export class TaskInvalidationBus {
     this.#ensureChannel();
     return () => {
       this.#listeners.delete(listener);
+
       if (this.#listeners.size === 0) {
         this.#channel?.close();
         this.#channel = null;

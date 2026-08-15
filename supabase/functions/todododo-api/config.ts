@@ -27,6 +27,7 @@ function parseAllowedOrigins(value: string | undefined): ReadonlySet<string> {
     }
 
     const parsed = new URL(origin);
+
     if (parsed.origin !== origin) {
       throw new Error('TODODODO_ALLOWED_ORIGINS must contain exact URL origins');
     }

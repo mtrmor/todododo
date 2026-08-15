@@ -23,12 +23,7 @@ const toneColors = {
   violet: colors.routeViolet,
 } as const;
 
-export function AppText({
-  variant = "body",
-  tone = "default",
-  style,
-  ...props
-}: AppTextProps) {
+export function AppText({ variant = "body", tone = "default", style, ...props }: AppTextProps) {
   return (
     <Text
       selectable

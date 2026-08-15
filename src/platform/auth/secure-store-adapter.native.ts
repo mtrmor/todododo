@@ -12,6 +12,7 @@ function chunkKey(key: string, index: number): string {
 
 async function readChunkCount(key: string): Promise<number> {
   const metadata = await SecureStore.getItemAsync(metadataKey(key));
+
   if (!metadata) {
     return 0;
   }
@@ -29,6 +30,7 @@ async function removeChunks(key: string, count: number): Promise<void> {
 export const secureStoreAdapter = {
   async getItem(key: string): Promise<string | null> {
     const count = await readChunkCount(key);
+
     if (count === 0) {
       return SecureStore.getItemAsync(key);
     }
@@ -55,9 +57,8 @@ export const secureStoreAdapter = {
 
     if (previousCount > chunks.length) {
       await Promise.all(
-        Array.from(
-          { length: previousCount - chunks.length },
-          (_, offset) => SecureStore.deleteItemAsync(chunkKey(key, chunks.length + offset)),
+        Array.from({ length: previousCount - chunks.length }, (_, offset) =>
+          SecureStore.deleteItemAsync(chunkKey(key, chunks.length + offset)),
         ),
       );
     }

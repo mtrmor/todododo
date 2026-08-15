@@ -1,16 +1,9 @@
-const ALLOWED_METHODS = new Set([
-  "GET",
-  "POST",
-  "PATCH",
-  "DELETE",
-  "OPTIONS",
-]);
+const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH", "DELETE", "OPTIONS"]);
 
 const MUTATION_METHODS = new Set(["POST", "PATCH", "DELETE"]);
 const MAX_BODY_BYTES = 16_384;
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
-const SUPABASE_AUTH_COOKIE_PATTERN =
-  /^sb-[A-Za-z0-9_-]+-auth-token(?:\.\d+)?$/u;
+const SUPABASE_AUTH_COOKIE_PATTERN = /^sb-[A-Za-z0-9_-]+-auth-token(?:\.\d+)?$/u;
 
 const FORWARDED_REQUEST_HEADERS = [
   "accept",
@@ -21,12 +14,7 @@ const FORWARDED_REQUEST_HEADERS = [
   "x-csrf-token",
 ] as const;
 
-const FORWARDED_RESPONSE_HEADERS = [
-  "content-type",
-  "expires",
-  "pragma",
-  "x-request-id",
-] as const;
+const FORWARDED_RESPONSE_HEADERS = ["content-type", "expires", "pragma", "x-request-id"] as const;
 
 type HeadersWithSetCookie = Headers & {
   getSetCookie?: () => string[];
@@ -79,17 +67,17 @@ function parsePublicOrigins(value: string | undefined): ReadonlySet<string> | nu
   const origins = new Set<string>();
   for (const candidate of value.split(",")) {
     const origin = candidate.trim();
+
     if (!origin) {
       continue;
     }
 
     const parsed = new URL(origin);
-    if (
-      (parsed.protocol !== "https:" && parsed.protocol !== "http:") ||
-      parsed.origin !== origin
-    ) {
+
+    if ((parsed.protocol !== "https:" && parsed.protocol !== "http:") || parsed.origin !== origin) {
       throw new Error("TODODODO_PUBLIC_ORIGINS must contain exact HTTP origins");
     }
+
     origins.add(origin);
   }
 
@@ -98,8 +86,7 @@ function parsePublicOrigins(value: string | undefined): ReadonlySet<string> | nu
 
 function getServerEnvironment(): ServerEnvironment | null {
   const functionUrl = process.env.SUPABASE_FUNCTION_URL;
-  const publishableKey =
-    process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
+  const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
 
   if (!functionUrl || !publishableKey) {
     return null;
@@ -118,6 +105,7 @@ function getServerEnvironment(): ServerEnvironment | null {
 
 function localFallbackOrigin(request: Request): string | null {
   const url = new URL(request.url);
+
   if (
     (url.protocol === "http:" || url.protocol === "https:") &&
     LOCAL_HOSTNAMES.has(url.hostname)
@@ -137,6 +125,7 @@ function isCrossOriginBrowserMutation(
   }
 
   const origin = request.headers.get("origin");
+
   if (!origin) {
     return false;
   }
@@ -150,6 +139,7 @@ function isCrossOriginBrowserMutation(
 
 function declaredBodyIsTooLarge(request: Request): boolean {
   const value = request.headers.get("content-length");
+
   if (!value || !/^\d+$/u.test(value)) {
     return false;
   }
@@ -171,11 +161,13 @@ async function readBodyWithinLimit(request: Request): Promise<string | undefined
   try {
     while (true) {
       const { done, value } = await reader.read();
+
       if (done) {
         break;
       }
 
       byteLength += value.byteLength;
+
       if (byteLength > MAX_BODY_BYTES) {
         try {
           await reader.cancel();
@@ -192,6 +184,7 @@ async function readBodyWithinLimit(request: Request): Promise<string | undefined
     if (new TextEncoder().encode(body).byteLength > MAX_BODY_BYTES) {
       throw new PayloadTooLargeError();
     }
+
     return body;
   } finally {
     reader.releaseLock();
@@ -208,9 +201,7 @@ export function filterForwardedCookieHeader(value: string): string | null {
     .map((cookie) => cookie.trim())
     .filter((cookie) => {
       const separatorIndex = cookie.indexOf("=");
-      return separatorIndex > 0 && isAllowedCookieName(
-        cookie.slice(0, separatorIndex).trim(),
-      );
+      return separatorIndex > 0 && isAllowedCookieName(cookie.slice(0, separatorIndex).trim());
     });
 
   return cookies.length > 0 ? cookies.join("; ") : null;
@@ -228,11 +219,14 @@ function createUpstreamHeaders(request: Request, publishableKey: string) {
 
   for (const name of FORWARDED_REQUEST_HEADERS) {
     const value = request.headers.get(name);
+
     if (!value) {
       continue;
     }
+
     if (name === "cookie") {
       const filtered = filterForwardedCookieHeader(value);
+
       if (filtered) {
         headers.set(name, filtered);
       }
@@ -253,6 +247,7 @@ function createDownstreamHeaders(upstream: Response): Headers {
 
   for (const name of FORWARDED_RESPONSE_HEADERS) {
     const value = upstream.headers.get(name);
+
     if (value) {
       headers.set(name, value);
     }
@@ -284,19 +279,18 @@ export async function proxyTodoDodoApi(request: Request): Promise<Response> {
 
   if (MUTATION_METHODS.has(method)) {
     const contentType = request.headers.get("content-type") ?? "";
+
     if (!contentType.toLowerCase().startsWith("application/json")) {
-      return jsonError(
-        415,
-        "json_required",
-        "Mutations require an application/json body.",
-      );
+      return jsonError(415, "json_required", "Mutations require an application/json body.");
     }
+
     if (declaredBodyIsTooLarge(request)) {
       return jsonError(413, "payload_too_large", "Request body is too large.");
     }
   }
 
   const environment = getServerEnvironment();
+
   if (!environment) {
     return jsonError(
       503,
@@ -309,15 +303,10 @@ export async function proxyTodoDodoApi(request: Request): Promise<Response> {
     return jsonError(403, "origin_mismatch", "Request origin is not allowed.");
   }
 
-  const target = createTargetUrl(
-    new URL(request.url),
-    environment.functionUrl,
-  );
+  const target = createTargetUrl(new URL(request.url), environment.functionUrl);
 
   try {
-    const body = MUTATION_METHODS.has(method)
-      ? await readBodyWithinLimit(request)
-      : undefined;
+    const body = MUTATION_METHODS.has(method) ? await readBodyWithinLimit(request) : undefined;
     const upstream = await fetch(target, {
       method,
       headers: createUpstreamHeaders(request, environment.publishableKey),
@@ -334,10 +323,7 @@ export async function proxyTodoDodoApi(request: Request): Promise<Response> {
     if (error instanceof PayloadTooLargeError) {
       return jsonError(413, "payload_too_large", "Request body is too large.");
     }
-    return jsonError(
-      502,
-      "upstream_unavailable",
-      "The TodoDodo API is temporarily unavailable.",
-    );
+
+    return jsonError(502, "upstream_unavailable", "The TodoDodo API is temporarily unavailable.");
   }
 }

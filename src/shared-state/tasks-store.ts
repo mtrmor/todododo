@@ -52,14 +52,16 @@ function freezeTask(task: TaskRecord): TaskRecord {
 }
 
 function taskEquals(left: TaskRecord, right: TaskRecord): boolean {
-  return left.id === right.id &&
+  return (
+    left.id === right.id &&
     left.title === right.title &&
     left.notes === right.notes &&
     left.dueDate === right.dueDate &&
     left.completed === right.completed &&
     left.createdAt === right.createdAt &&
     left.updatedAt === right.updatedAt &&
-    left.completedAt === right.completedAt;
+    left.completedAt === right.completedAt
+  );
 }
 
 function sameIds(left: readonly string[], right: readonly string[]): boolean {
@@ -75,12 +77,15 @@ function mergeEntities(
 
   for (const incoming of tasks) {
     const existing = current[incoming.id];
+
     if (existing && pendingById?.[incoming.id]) {
       continue;
     }
+
     if (existing && taskEquals(existing, incoming)) {
       continue;
     }
+
     next ??= { ...current };
     next[incoming.id] = freezeTask(incoming);
   }
@@ -115,7 +120,10 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
   }
 
   bindUser(userId: string | null): void {
-    if (this.#boundUserId === userId) return;
+    if (this.#boundUserId === userId) {
+      return;
+    }
+
     this.#boundUserId = userId;
     this.#userGeneration += 1;
     this.#readGeneration += 1;
@@ -123,7 +131,9 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
   }
 
   releaseUser(userId: string): void {
-    if (this.#boundUserId === userId) this.bindUser(null);
+    if (this.#boundUserId === userId) {
+      this.bindUser(null);
+    }
   }
 
   captureReadToken(): TasksReadToken {
@@ -134,8 +144,9 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
   }
 
   isReadTokenCurrent(token: TasksReadToken): boolean {
-    return token.userGeneration === this.#userGeneration &&
-      token.readGeneration === this.#readGeneration;
+    return (
+      token.userGeneration === this.#userGeneration && token.readGeneration === this.#readGeneration
+    );
   }
 
   captureUserGeneration(): number {
@@ -152,30 +163,49 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
     let collectionsChanged = false;
     const collections = Object.fromEntries(
       Object.entries(snapshot.collections).map(([key, collection]) => {
-        if (collection.status === "idle" ||
-          (collection.status === "ready" && collection.error === null && !collection.offline)) {
+        if (
+          collection.status === "idle" ||
+          (collection.status === "ready" && collection.error === null && !collection.offline)
+        ) {
           return [key, collection];
         }
+
         collectionsChanged = true;
-        return [key, Object.freeze({
-          ...collection,
-          status: "ready" as const,
-          error: null,
-          offline: false,
-        })];
+        return [
+          key,
+          Object.freeze({
+            ...collection,
+            status: "ready" as const,
+            error: null,
+            offline: false,
+          }),
+        ];
       }),
     );
-    const summaryChanged = snapshot.summary.status !== "idle" &&
-      (snapshot.summary.status !== "ready" || snapshot.summary.error !== null ||
+    const summaryChanged =
+      snapshot.summary.status !== "idle" &&
+      (snapshot.summary.status !== "ready" ||
+        snapshot.summary.error !== null ||
         snapshot.summary.offline);
-    if (!collectionsChanged && !summaryChanged) return;
-    this.publish(Object.freeze({
-      ...snapshot,
-      collections: collectionsChanged ? Object.freeze(collections) : snapshot.collections,
-      summary: summaryChanged
-        ? Object.freeze({ ...snapshot.summary, status: "ready" as const, error: null, offline: false })
-        : snapshot.summary,
-    }));
+
+    if (!collectionsChanged && !summaryChanged) {
+      return;
+    }
+
+    this.publish(
+      Object.freeze({
+        ...snapshot,
+        collections: collectionsChanged ? Object.freeze(collections) : snapshot.collections,
+        summary: summaryChanged
+          ? Object.freeze({
+              ...snapshot.summary,
+              status: "ready" as const,
+              error: null,
+              offline: false,
+            })
+          : snapshot.summary,
+      }),
+    );
   }
 
   beginCompletion(
@@ -184,7 +214,11 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
     sourceCollectionKey: string,
   ): CompletionTransaction | null {
     const task = this.getTask(taskId);
-    if (!task || this.getSnapshot().pendingById[taskId]) return null;
+
+    if (!task || this.getSnapshot().pendingById[taskId]) {
+      return null;
+    }
+
     const summary = this.getSummary();
     const now = new Date().toISOString();
     this.setPending(taskId, "complete");
@@ -193,6 +227,7 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
       completedAt: completed ? now : null,
       updatedAt: now,
     });
+
     if (summary.status !== "idle" && task.completed !== completed) {
       this.setSummary({
         total: summary.data.total,
@@ -200,6 +235,7 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
         completed: Math.max(0, summary.data.completed + (completed ? 1 : -1)),
       });
     }
+
     return Object.freeze({ task, summary, sourceCollectionKey });
   }
 
@@ -210,15 +246,13 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
     this.setPending(task.id, null);
   }
 
-  rollbackCompletion(
-    transaction: CompletionTransaction,
-    error: string,
-    offline: boolean,
-  ): void {
+  rollbackCompletion(transaction: CompletionTransaction, error: string, offline: boolean): void {
     this.upsertTask(transaction.task);
+
     if (transaction.summary.status !== "idle") {
       this.setSummary(transaction.summary.data);
     }
+
     this.failCollection(transaction.sourceCollectionKey, error, offline);
     this.setPending(transaction.task.id, null);
   }
@@ -244,6 +278,7 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
   beginCollection(key: string, status: "loading" | "refreshing" | "loading-more"): void {
     const snapshot = this.getSnapshot();
     const current = snapshot.collections[key] ?? emptyCollection();
+
     if (current.status === status && current.error === null && !current.offline) {
       return;
     }
@@ -254,17 +289,15 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
       error: null,
       offline: false,
     });
-    this.publish(Object.freeze({
-      ...snapshot,
-      collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
-    }));
+    this.publish(
+      Object.freeze({
+        ...snapshot,
+        collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
+      }),
+    );
   }
 
-  replaceCollection(
-    key: string,
-    tasks: readonly TaskRecord[],
-    nextCursor: string | null,
-  ): void {
+  replaceCollection(key: string, tasks: readonly TaskRecord[], nextCursor: string | null): void {
     const snapshot = this.getSnapshot();
     const byId = mergeEntities(snapshot.byId, tasks, snapshot.pendingById);
     const ids = Object.freeze(tasks.map((task) => task.id));
@@ -277,27 +310,28 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
       offline: false,
     });
 
-    if (current && byId === snapshot.byId &&
+    if (
+      current &&
+      byId === snapshot.byId &&
       current.ids === nextCollection.ids &&
       current.nextCursor === nextCursor &&
       current.status === "ready" &&
       current.error === null &&
-      !current.offline) {
+      !current.offline
+    ) {
       return;
     }
 
-    this.publish(Object.freeze({
-      ...snapshot,
-      byId,
-      collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
-    }));
+    this.publish(
+      Object.freeze({
+        ...snapshot,
+        byId,
+        collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
+      }),
+    );
   }
 
-  appendCollection(
-    key: string,
-    tasks: readonly TaskRecord[],
-    nextCursor: string | null,
-  ): void {
+  appendCollection(key: string, tasks: readonly TaskRecord[], nextCursor: string | null): void {
     const snapshot = this.getSnapshot();
     const current = snapshot.collections[key] ?? emptyCollection();
     const byId = mergeEntities(snapshot.byId, tasks, snapshot.pendingById);
@@ -319,17 +353,24 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
       offline: false,
     });
 
-    if (byId === snapshot.byId && nextIds === current.ids &&
-      current.nextCursor === nextCursor && current.status === "ready" &&
-      current.error === null && !current.offline) {
+    if (
+      byId === snapshot.byId &&
+      nextIds === current.ids &&
+      current.nextCursor === nextCursor &&
+      current.status === "ready" &&
+      current.error === null &&
+      !current.offline
+    ) {
       return;
     }
 
-    this.publish(Object.freeze({
-      ...snapshot,
-      byId,
-      collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
-    }));
+    this.publish(
+      Object.freeze({
+        ...snapshot,
+        byId,
+        collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
+      }),
+    );
   }
 
   failCollection(key: string, error: string, offline: boolean): void {
@@ -341,51 +382,62 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
       error,
       offline,
     });
-    this.publish(Object.freeze({
-      ...snapshot,
-      collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
-    }));
+    this.publish(
+      Object.freeze({
+        ...snapshot,
+        collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
+      }),
+    );
   }
 
   clearCollectionError(key: string): void {
     const snapshot = this.getSnapshot();
     const current = snapshot.collections[key];
+
     if (!current || (current.error === null && !current.offline)) {
       return;
     }
+
     const nextCollection: TaskCollection = Object.freeze({
       ...current,
       status: "ready",
       error: null,
       offline: false,
     });
-    this.publish(Object.freeze({
-      ...snapshot,
-      collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
-    }));
+    this.publish(
+      Object.freeze({
+        ...snapshot,
+        collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
+      }),
+    );
   }
 
   settleCollection(key: string): void {
     const snapshot = this.getSnapshot();
     const current = snapshot.collections[key];
+
     if (!current || (current.status === "ready" && current.error === null && !current.offline)) {
       return;
     }
+
     const nextCollection: TaskCollection = Object.freeze({
       ...current,
       status: "ready",
       error: null,
       offline: false,
     });
-    this.publish(Object.freeze({
-      ...snapshot,
-      collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
-    }));
+    this.publish(
+      Object.freeze({
+        ...snapshot,
+        collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
+      }),
+    );
   }
 
   upsertTask(task: TaskRecord): void {
     const snapshot = this.getSnapshot();
     const byId = mergeEntities(snapshot.byId, [task]);
+
     if (byId !== snapshot.byId) {
       this.publish(Object.freeze({ ...snapshot, byId }));
     }
@@ -395,44 +447,55 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
     const snapshot = this.getSnapshot();
     const current = snapshot.collections[key];
     const byId = mergeEntities(snapshot.byId, [task]);
+
     if (!current) {
       if (byId !== snapshot.byId) {
         this.publish(Object.freeze({ ...snapshot, byId }));
       }
+
       return;
     }
 
     const ids = Object.freeze([task.id, ...current.ids.filter((id) => id !== task.id)]);
-    this.publish(Object.freeze({
-      ...snapshot,
-      byId,
-      collections: Object.freeze({
-        ...snapshot.collections,
-        [key]: Object.freeze({ ...current, ids }),
+    this.publish(
+      Object.freeze({
+        ...snapshot,
+        byId,
+        collections: Object.freeze({
+          ...snapshot.collections,
+          [key]: Object.freeze({ ...current, ids }),
+        }),
       }),
-    }));
+    );
   }
 
   patchTask(taskId: string, patch: Partial<TaskRecord>): TaskRecord | null {
     const snapshot = this.getSnapshot();
     const current = snapshot.byId[taskId];
+
     if (!current) {
       return null;
     }
+
     const next = freezeTask({ ...current, ...patch, id: current.id });
+
     if (taskEquals(current, next)) {
       return current;
     }
-    this.publish(Object.freeze({
-      ...snapshot,
-      byId: Object.freeze({ ...snapshot.byId, [taskId]: next }),
-    }));
+
+    this.publish(
+      Object.freeze({
+        ...snapshot,
+        byId: Object.freeze({ ...snapshot.byId, [taskId]: next }),
+      }),
+    );
     return current;
   }
 
   removeTask(taskId: string): TaskRecord | null {
     const snapshot = this.getSnapshot();
     const current = snapshot.byId[taskId];
+
     if (!current) {
       return null;
     }
@@ -443,46 +506,60 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
       Object.entries(snapshot.collections).map(([key, collection]) => [
         key,
         collection.ids.includes(taskId)
-          ? Object.freeze({ ...collection, ids: Object.freeze(collection.ids.filter((id) => id !== taskId)) })
+          ? Object.freeze({
+              ...collection,
+              ids: Object.freeze(collection.ids.filter((id) => id !== taskId)),
+            })
           : collection,
       ]),
     );
     const pendingById = { ...snapshot.pendingById };
     delete pendingById[taskId];
 
-    this.publish(Object.freeze({
-      ...snapshot,
-      byId: Object.freeze(byId),
-      collections: Object.freeze(collections),
-      pendingById: Object.freeze(pendingById),
-    }));
+    this.publish(
+      Object.freeze({
+        ...snapshot,
+        byId: Object.freeze(byId),
+        collections: Object.freeze(collections),
+        pendingById: Object.freeze(pendingById),
+      }),
+    );
     return current;
   }
 
   setPending(taskId: string, kind: TaskMutationKind | null): void {
     const snapshot = this.getSnapshot();
+
     if (kind === null && !(taskId in snapshot.pendingById)) {
       return;
     }
+
     if (kind !== null && snapshot.pendingById[taskId] === kind) {
       return;
     }
 
     const pendingById = { ...snapshot.pendingById };
+
     if (kind === null) {
       delete pendingById[taskId];
     } else {
       pendingById[taskId] = kind;
     }
+
     this.publish(Object.freeze({ ...snapshot, pendingById: Object.freeze(pendingById) }));
   }
 
   beginSummary(status: "loading" | "refreshing"): void {
     const snapshot = this.getSnapshot();
-    if (snapshot.summary.status === status && snapshot.summary.error === null &&
-      !snapshot.summary.offline) {
+
+    if (
+      snapshot.summary.status === status &&
+      snapshot.summary.error === null &&
+      !snapshot.summary.offline
+    ) {
       return;
     }
+
     const summary: TaskSummaryState = Object.freeze({
       ...snapshot.summary,
       status,
@@ -496,11 +573,18 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
     const snapshot = this.getSnapshot();
     const frozenData = Object.freeze({ ...data });
     const current = snapshot.summary;
-    if (current.status === "ready" && current.error === null && !current.offline &&
-      current.data.open === data.open && current.data.total === data.total &&
-      current.data.completed === data.completed) {
+
+    if (
+      current.status === "ready" &&
+      current.error === null &&
+      !current.offline &&
+      current.data.open === data.open &&
+      current.data.total === data.total &&
+      current.data.completed === data.completed
+    ) {
       return;
     }
+
     const summary: TaskSummaryState = Object.freeze({
       data: frozenData,
       status: "ready",
@@ -523,11 +607,16 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
 
   settleSummary(): void {
     const snapshot = this.getSnapshot();
-    if (snapshot.summary.status === "idle" ||
-      (snapshot.summary.status === "ready" && snapshot.summary.error === null &&
-        !snapshot.summary.offline)) {
+
+    if (
+      snapshot.summary.status === "idle" ||
+      (snapshot.summary.status === "ready" &&
+        snapshot.summary.error === null &&
+        !snapshot.summary.offline)
+    ) {
       return;
     }
+
     const summary: TaskSummaryState = Object.freeze({
       ...snapshot.summary,
       status: "ready",

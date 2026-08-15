@@ -63,6 +63,7 @@ async function ensureOptionalEmptyJson(request: Request): Promise<void> {
   if (request.body === null) {
     return;
   }
+
   ensureEmptyBody(await readJsonObject(request));
 }
 
@@ -106,6 +107,7 @@ async function signUpResponse(
   const body = parseCredentials(await readJsonObject(request));
   const supabase = createRequestSupabase(request, state, config, false);
   const { data, error } = await supabase.client.auth.signUp(body);
+
   if (error || !data.user) {
     throw authFailure('The account could not be created.');
   }
@@ -129,6 +131,7 @@ async function signInResponse(
   const body = parseCredentials(await readJsonObject(request));
   const supabase = createRequestSupabase(request, state, config, false);
   const { data, error } = await supabase.client.auth.signInWithPassword(body);
+
   if (error || !data.user) {
     throw authFailure('Invalid email or password.', 401);
   }
@@ -147,9 +150,11 @@ async function signOutResponse(
   await authenticatedUser(supabase);
 
   const { error } = await supabase.client.auth.signOut({ scope: 'local' });
+
   if (error) {
     throw authFailure('The session could not be closed.');
   }
+
   if (supabase.mode === 'cookie') {
     clearCsrfCookie(state, config);
   }
@@ -174,6 +179,7 @@ async function taskCollectionResponse(
       201,
     );
   }
+
   if (request.method !== 'GET') {
     return methodNotAllowed(state, ['GET', 'POST']);
   }
@@ -206,11 +212,13 @@ async function taskItemResponse(
   if (request.method === 'GET') {
     return jsonResponse(state, await getTask(supabase.client, taskId));
   }
+
   if (request.method === 'PATCH') {
     await protectMutation(request, supabase, config);
     const input = parseUpdateTask(await readJsonObject(request));
     return jsonResponse(state, await updateTask(supabase.client, taskId, input));
   }
+
   if (request.method === 'DELETE') {
     await protectMutation(request, supabase, config);
     await ensureOptionalEmptyJson(request);
@@ -247,29 +255,35 @@ async function dispatch(
       ? await sessionResponse(request, state, config)
       : methodNotAllowed(state, ['GET']);
   }
+
   if (path === `${API_PREFIX}/auth/sign-up`) {
     return request.method === 'POST'
       ? await signUpResponse(request, state, config)
       : methodNotAllowed(state, ['POST']);
   }
+
   if (path === `${API_PREFIX}/auth/sign-in`) {
     return request.method === 'POST'
       ? await signInResponse(request, state, config)
       : methodNotAllowed(state, ['POST']);
   }
+
   if (path === `${API_PREFIX}/auth/sign-out`) {
     return request.method === 'POST'
       ? await signOutResponse(request, state, config)
       : methodNotAllowed(state, ['POST']);
   }
+
   if (path === `${API_PREFIX}/tasks/summary`) {
     return await summaryResponse(request, state, config);
   }
+
   if (path === `${API_PREFIX}/tasks`) {
     return await taskCollectionResponse(request, state, config);
   }
 
   const taskMatch = new RegExp(`^${API_PREFIX}/tasks/([^/]+)$`, 'u').exec(path);
+
   if (taskMatch) {
     return await taskItemResponse(
       request,
@@ -287,6 +301,7 @@ function rejectDisallowedPreflight(
   config: AppConfig,
 ): void {
   const origin = request.headers.get('origin');
+
   if (origin && !config.allowedOrigins.has(origin)) {
     throw new HttpError(403, 'invalid_origin', 'Request origin is not allowed.');
   }
@@ -298,6 +313,7 @@ export async function handleRequest(request: Request): Promise<Response> {
   try {
     const config = loadConfig();
     applyCorsForAllowedOrigin(request, state, config);
+
     if (request.method === 'OPTIONS') {
       rejectDisallowedPreflight(request, config);
       return emptyResponse(state);

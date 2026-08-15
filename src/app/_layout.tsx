@@ -17,10 +17,7 @@ export default function RootLayout() {
       <TasksDataProvider>
         <Head>
           <title>TodoDodo</title>
-          <meta
-            content="A quiet route through the work ahead."
-            name="description"
-          />
+          <meta content="A quiet route through the work ahead." name="description" />
         </Head>
         <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }} />

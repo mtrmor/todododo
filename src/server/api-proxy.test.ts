@@ -1,13 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  filterForwardedCookieHeader,
-  proxyTodoDodoApi,
-  splitSetCookieHeader,
-} from "./api-proxy";
+import { filterForwardedCookieHeader, proxyTodoDodoApi, splitSetCookieHeader } from "./api-proxy";
 
-const FUNCTION_URL =
-  "https://project-ref.supabase.co/functions/v1/todododo-api";
+const FUNCTION_URL = "https://project-ref.supabase.co/functions/v1/todododo-api";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -107,13 +102,9 @@ describe("proxyTodoDodoApi", () => {
       }),
     );
 
-    expect(upstreamRequest?.url).toBe(
-      `${FUNCTION_URL}/v1/tasks?cursor=next&limit=50`,
-    );
+    expect(upstreamRequest?.url).toBe(`${FUNCTION_URL}/v1/tasks?cursor=next&limit=50`);
     expect(upstreamRequest?.method).toBe("POST");
-    expect(upstreamRequest?.headers.get("apikey")).toBe(
-      "publishable-test-key",
-    );
+    expect(upstreamRequest?.headers.get("apikey")).toBe("publishable-test-key");
     expect(upstreamRequest?.headers.get("cookie")).toBe(
       "todododo-csrf=csrf-token; sb-project-ref-auth-token.0=first-chunk; " +
         "sb-project-ref-auth-token.1=second-chunk",
@@ -280,9 +271,7 @@ describe("proxyTodoDodoApi", () => {
     vi.stubEnv("SUPABASE_PUBLISHABLE_KEY", "");
     vi.stubEnv("SUPABASE_ANON_KEY", "");
 
-    const response = await proxyTodoDodoApi(
-      new Request("https://todo.example/api/v1/session"),
-    );
+    const response = await proxyTodoDodoApi(new Request("https://todo.example/api/v1/session"));
 
     expect(response.status).toBe(503);
     expect(response.headers.get("cache-control")).toBe("private, no-store");

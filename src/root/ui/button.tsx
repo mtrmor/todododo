@@ -11,13 +11,40 @@ type ButtonProps = Omit<PressableProps, "children"> & {
 };
 
 const variants = {
-  primary: { background: colors.routeViolet, pressed: colors.routeVioletPressed, border: colors.routeViolet, text: colors.white },
-  secondary: { background: colors.paper, pressed: colors.railFog, border: colors.softLine, text: colors.ink },
-  ghost: { background: "transparent", pressed: colors.lavenderSelection, border: "transparent", text: colors.routeViolet },
-  danger: { background: colors.danger, pressed: "#8E1D18", border: colors.danger, text: colors.white },
+  primary: {
+    background: colors.routeViolet,
+    pressed: colors.routeVioletPressed,
+    border: colors.routeViolet,
+    text: colors.white,
+  },
+  secondary: {
+    background: colors.paper,
+    pressed: colors.railFog,
+    border: colors.softLine,
+    text: colors.ink,
+  },
+  ghost: {
+    background: "transparent",
+    pressed: colors.lavenderSelection,
+    border: "transparent",
+    text: colors.routeViolet,
+  },
+  danger: {
+    background: colors.danger,
+    pressed: "#8E1D18",
+    border: colors.danger,
+    text: colors.white,
+  },
 } as const;
 
-export function Button({ children, variant = "primary", loading = false, disabled, style, ...props }: ButtonProps) {
+export function Button({
+  children,
+  variant = "primary",
+  loading = false,
+  disabled,
+  style,
+  ...props
+}: ButtonProps) {
   const palette = variants[variant];
   const unavailable = disabled || loading;
 
@@ -46,7 +73,9 @@ export function Button({ children, variant = "primary", loading = false, disable
       ]}
     >
       {loading ? <ActivityIndicator color={palette.text} size="small" /> : null}
-      <AppText variant="bodySemibold" style={{ color: palette.text }}>{children}</AppText>
+      <AppText variant="bodySemibold" style={{ color: palette.text }}>
+        {children}
+      </AppText>
     </Pressable>
   );
 }

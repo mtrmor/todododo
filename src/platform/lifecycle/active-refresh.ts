@@ -8,7 +8,9 @@ export function subscribeToActiveRefresh(
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
 ): () => void {
   const appStateSubscription = AppState.addEventListener("change", (state) => {
-    if (state === "active") refresh();
+    if (state === "active") {
+      refresh();
+    }
   });
 
   if (
@@ -20,7 +22,9 @@ export function subscribeToActiveRefresh(
   }
 
   const refreshIfVisible = () => {
-    if (document.visibilityState === "visible") refresh();
+    if (document.visibilityState === "visible") {
+      refresh();
+    }
   };
   window.addEventListener("focus", refreshIfVisible);
   window.addEventListener("online", refreshIfVisible);

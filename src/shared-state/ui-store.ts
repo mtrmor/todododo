@@ -18,23 +18,28 @@ export class UiStore extends ExternalStore<UiSnapshot> {
     if (this.getSnapshot().taskDialog?.mode === "create") {
       return;
     }
+
     this.publish(Object.freeze({ taskDialog: Object.freeze({ mode: "create" }) }));
   }
 
   openTask(taskId: string): void {
     const normalizedTaskId = taskId.trim();
+
     if (!normalizedTaskId) {
       return;
     }
 
     const dialog = this.getSnapshot().taskDialog;
+
     if (dialog?.mode === "edit" && dialog.taskId === normalizedTaskId) {
       return;
     }
 
-    this.publish(Object.freeze({
-      taskDialog: Object.freeze({ mode: "edit", taskId: normalizedTaskId }),
-    }));
+    this.publish(
+      Object.freeze({
+        taskDialog: Object.freeze({ mode: "edit", taskId: normalizedTaskId }),
+      }),
+    );
   }
 
   closeTask(): void {

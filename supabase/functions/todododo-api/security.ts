@@ -36,11 +36,13 @@ export async function csrfTokenForSession(
     cookieValue(request, CSRF_COOKIE_NAME),
     config.csrfSecret,
   );
+
   if (result.created) {
     state.setCookies.push(
       csrfCookie(result.token, config, CSRF_COOKIE_MAX_AGE),
     );
   }
+
   return result.token;
 }
 
@@ -56,12 +58,14 @@ export async function requireCookieMutationProtection(
   config: AppConfig,
 ): Promise<void> {
   const origin = request.headers.get('origin');
+
   if (!origin || !config.allowedOrigins.has(origin)) {
     throw new HttpError(403, 'invalid_origin', 'Request origin is not allowed.');
   }
 
   const headerToken = request.headers.get('x-csrf-token') ?? '';
   const cookieToken = cookieValue(request, CSRF_COOKIE_NAME) ?? '';
+
   if (
     !headerToken ||
     !cookieToken ||
@@ -78,6 +82,7 @@ export function applyCorsForAllowedOrigin(
   config: AppConfig,
 ): void {
   const origin = request.headers.get('origin');
+
   if (!origin || !config.allowedOrigins.has(origin)) {
     return;
   }

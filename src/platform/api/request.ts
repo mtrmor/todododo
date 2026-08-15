@@ -1,9 +1,6 @@
 import { ApiError, isAbortError } from "@/platform/api/api-error";
 import { getPlatformRequestContext } from "@/platform/api/platform-transport";
-import {
-  getCsrfToken,
-  refreshSessionAfterUnauthorized,
-} from "@/platform/auth/session-runtime";
+import { getCsrfToken, refreshSessionAfterUnauthorized } from "@/platform/auth/session-runtime";
 
 type JsonRequestOptions = Readonly<{
   method?: "GET" | "POST" | "PATCH" | "DELETE";
@@ -72,10 +69,7 @@ async function waitBeforeRetry(signal?: AbortSignal): Promise<void> {
   });
 }
 
-export async function requestJson<T>(
-  path: string,
-  options: JsonRequestOptions = {},
-): Promise<T> {
+export async function requestJson<T>(path: string, options: JsonRequestOptions = {}): Promise<T> {
   const method = options.method ?? "GET";
   let transientRetried = false;
   let authRetried = false;
@@ -93,6 +87,7 @@ export async function requestJson<T>(
 
     if (context.cookieAuth && isMutation(method)) {
       const csrfToken = getCsrfToken();
+
       if (csrfToken) {
         headers.set("X-CSRF-Token", csrfToken);
       }

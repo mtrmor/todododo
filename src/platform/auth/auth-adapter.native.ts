@@ -2,9 +2,7 @@ import { ApiError } from "@/platform/api/api-error";
 import type { SessionEnvelope } from "@/platform/auth/auth-adapter";
 import { getNativeSupabaseClient } from "@/platform/auth/native-supabase.native";
 
-function toSessionEnvelope(
-  user: { id: string; email?: string } | null,
-): SessionEnvelope {
+function toSessionEnvelope(user: { id: string; email?: string } | null): SessionEnvelope {
   return {
     user: user ? { id: user.id, email: user.email ?? null } : null,
     csrfToken: null,
@@ -15,6 +13,7 @@ export const authAdapter = {
   async getSession(): Promise<SessionEnvelope> {
     const { data: sessionData, error: sessionError } =
       await getNativeSupabaseClient().auth.getSession();
+
     if (sessionError) {
       throw new ApiError(sessionError.message, {
         status: sessionError.status ?? 0,
@@ -30,6 +29,7 @@ export const authAdapter = {
     const { data, error } = await getNativeSupabaseClient().auth.getUser(
       sessionData.session.access_token,
     );
+
     if (error) {
       throw new ApiError(error.message, {
         status: error.status ?? 401,
@@ -46,6 +46,7 @@ export const authAdapter = {
       email,
       password,
     });
+
     if (error) {
       throw new ApiError(error.message, {
         status: error.status ?? 400,
@@ -57,6 +58,7 @@ export const authAdapter = {
 
   async signUp(email: string, password: string): Promise<void> {
     const { error } = await getNativeSupabaseClient().auth.signUp({ email, password });
+
     if (error) {
       throw new ApiError(error.message, {
         status: error.status ?? 400,
@@ -68,6 +70,7 @@ export const authAdapter = {
 
   async signOut(): Promise<void> {
     const { error } = await getNativeSupabaseClient().auth.signOut({ scope: "local" });
+
     if (error) {
       throw new ApiError(error.message, {
         status: error.status ?? 400,

@@ -8,10 +8,7 @@ export default function IndexRoute() {
   if (status === "loading") {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator
-          accessibilityLabel="Loading TodoDodo"
-          color="#6254D8"
-        />
+        <ActivityIndicator accessibilityLabel="Loading TodoDodo" color="#6254D8" />
       </View>
     );
   }

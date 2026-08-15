@@ -38,7 +38,11 @@ export function TextField({ label, error, style, ...props }: TextFieldProps) {
           style,
         ]}
       />
-      {error ? <AppText nativeID={errorId} variant="caption" tone="danger">{error}</AppText> : null}
+      {error ? (
+        <AppText nativeID={errorId} variant="caption" tone="danger">
+          {error}
+        </AppText>
+      ) : null}
     </View>
   );
 }

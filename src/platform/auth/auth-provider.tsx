@@ -52,9 +52,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return session.user;
   }
 
-  const loadSession = useEffectEvent(async (
-    signal?: AbortSignal,
-  ): Promise<SafeUser | null> => {
+  const loadSession = useEffectEvent(async (signal?: AbortSignal): Promise<SafeUser | null> => {
     try {
       const session = await authAdapter.getSession(signal);
       return applySession(session);
@@ -62,6 +60,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       if (!signal?.aborted) {
         sessionRecoveryNeededRef.current = true;
       }
+
       throw error;
     }
   });
@@ -100,10 +99,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     const retrySessionRecovery = () => {
-      if (
-        !sessionRecoveryNeededRef.current ||
-        document.visibilityState !== "visible"
-      ) {
+      if (!sessionRecoveryNeededRef.current || document.visibilityState !== "visible") {
         return;
       }
 
@@ -172,6 +168,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
 export function useAuth(): AuthContextValue {
   const value = use(AuthContext);
+
   if (!value) {
     throw new Error("useAuth must be used inside AuthProvider");
   }

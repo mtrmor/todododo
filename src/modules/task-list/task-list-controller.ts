@@ -39,7 +39,10 @@ export class TaskListController {
   }
 
   load(mode: "initial" | "refresh" = "refresh"): Promise<void> {
-    if (this.#request) return this.#request.promise;
+    if (this.#request) {
+      return this.#request.promise;
+    }
+
     const current = this.store.getCollection(INBOX_COLLECTION_KEY);
     const controller = new AbortController();
     const token = this.store.captureReadToken();
@@ -54,7 +57,11 @@ export class TaskListController {
         }
       })
       .catch((error: unknown) => {
-        if (!isAbortError(error) && !controller.signal.aborted && this.store.isReadTokenCurrent(token)) {
+        if (
+          !isAbortError(error) &&
+          !controller.signal.aborted &&
+          this.store.isReadTokenCurrent(token)
+        ) {
           this.store.failCollection(
             INBOX_COLLECTION_KEY,
             getErrorMessage(error, "Tasks could not be loaded."),
@@ -63,7 +70,9 @@ export class TaskListController {
         }
       })
       .finally(() => {
-        if (this.#request?.promise === promise) this.#request = null;
+        if (this.#request?.promise === promise) {
+          this.#request = null;
+        }
       });
     this.#request = { controller, promise };
     return promise;
@@ -71,30 +80,47 @@ export class TaskListController {
 
   loadMore(): Promise<void> {
     const current = this.store.getCollection(INBOX_COLLECTION_KEY);
-    if (!current.nextCursor) return Promise.resolve();
-    if (this.#request) return this.#request.promise;
+
+    if (!current.nextCursor) {
+      return Promise.resolve();
+    }
+
+    if (this.#request) {
+      return this.#request.promise;
+    }
+
     const controller = new AbortController();
     const token = this.store.captureReadToken();
     this.store.beginCollection(INBOX_COLLECTION_KEY, "loading-more");
-    const promise = this.api.getTasks({
-      cursor: current.nextCursor,
-      limit: PAGE_SIZE,
-      signal: controller.signal,
-    }).then((page) => {
-      if (!controller.signal.aborted && this.store.isReadTokenCurrent(token)) {
-        this.store.appendCollection(INBOX_COLLECTION_KEY, page.items, page.nextCursor);
-      }
-    }).catch((error: unknown) => {
-      if (!isAbortError(error) && !controller.signal.aborted && this.store.isReadTokenCurrent(token)) {
-        this.store.failCollection(
-          INBOX_COLLECTION_KEY,
-          getErrorMessage(error, "More tasks could not be loaded."),
-          isOffline(),
-        );
-      }
-    }).finally(() => {
-      if (this.#request?.promise === promise) this.#request = null;
-    });
+    const promise = this.api
+      .getTasks({
+        cursor: current.nextCursor,
+        limit: PAGE_SIZE,
+        signal: controller.signal,
+      })
+      .then((page) => {
+        if (!controller.signal.aborted && this.store.isReadTokenCurrent(token)) {
+          this.store.appendCollection(INBOX_COLLECTION_KEY, page.items, page.nextCursor);
+        }
+      })
+      .catch((error: unknown) => {
+        if (
+          !isAbortError(error) &&
+          !controller.signal.aborted &&
+          this.store.isReadTokenCurrent(token)
+        ) {
+          this.store.failCollection(
+            INBOX_COLLECTION_KEY,
+            getErrorMessage(error, "More tasks could not be loaded."),
+            isOffline(),
+          );
+        }
+      })
+      .finally(() => {
+        if (this.#request?.promise === promise) {
+          this.#request = null;
+        }
+      });
     this.#request = { controller, promise };
     return promise;
   }
@@ -104,10 +130,12 @@ export class TaskListController {
     const transaction = this.store.beginCompletion(taskId, completed, INBOX_COLLECTION_KEY);
     try {
       const task = await this.api.setTaskCompleted(taskId, completed);
+
       if (this.store.isUserGenerationCurrent(generation)) {
         this.store.confirmCompletion(task, INBOX_COLLECTION_KEY);
         taskInvalidationBus.publish();
       }
+
       return task;
     } catch (error) {
       if (transaction && this.store.isUserGenerationCurrent(generation)) {
@@ -117,6 +145,7 @@ export class TaskListController {
           isOffline(),
         );
       }
+
       throw error;
     }
   }
@@ -130,7 +159,11 @@ export class TaskListController {
       const page = await this.api.getTasks({ cursor, limit: PAGE_SIZE, signal });
       items.push(...page.items);
       nextCursor = page.nextCursor;
-      if (!nextCursor || items.length >= targetCount || seen.has(nextCursor)) break;
+
+      if (!nextCursor || items.length >= targetCount || seen.has(nextCursor)) {
+        break;
+      }
+
       seen.add(nextCursor);
       cursor = nextCursor;
     } while (items.length < targetCount);

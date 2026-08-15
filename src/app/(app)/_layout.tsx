@@ -1,8 +1,5 @@
 import { colors, fonts, useAuth } from "@/platform";
-import {
-  SidebarModule,
-  type SidebarRoute,
-} from "@/modules/sidebar";
+import { SidebarModule, type SidebarRoute } from "@/modules/sidebar";
 import { TaskDetailModule } from "@/modules/task-detail";
 import { List, PathIcon } from "phosphor-react-native";
 import { type Href, Redirect, Slot, usePathname, useRouter } from "expo-router";
@@ -37,19 +34,14 @@ export default function AppLayout() {
   const mobile = width < 720;
   const compact = width >= 720 && width < 1100;
   const firstSegment = pathname.split("/").filter(Boolean)[0];
-  const activeRoute: SidebarRoute = SIDEBAR_ROUTES.has(
-    firstSegment as SidebarRoute,
-  )
+  const activeRoute: SidebarRoute = SIDEBAR_ROUTES.has(firstSegment as SidebarRoute)
     ? (firstSegment as SidebarRoute)
     : "inbox";
 
   if (status === "loading") {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator
-          accessibilityLabel="Loading your tasks"
-          color={colors.routeViolet}
-        />
+        <ActivityIndicator accessibilityLabel="Loading your tasks" color={colors.routeViolet} />
       </View>
     );
   }
@@ -66,11 +58,7 @@ export default function AppLayout() {
   return (
     <View style={[styles.page, mobile && styles.pageMobile]}>
       {!mobile ? (
-        <SidebarModule
-          activeRoute={activeRoute}
-          compact={compact}
-          onNavigate={navigate}
-        />
+        <SidebarModule activeRoute={activeRoute} compact={compact} onNavigate={navigate} />
       ) : (
         <MobileHeader onOpen={() => setDrawerOpen(true)} />
       )}
@@ -120,21 +108,11 @@ function MobileHeader({ onOpen }: { onOpen: () => void }) {
         onPress={onOpen}
         style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
       >
-        <List
-          aria-hidden
-          color={colors.ink}
-          size={21}
-          weight="regular"
-        />
+        <List aria-hidden color={colors.ink} size={21} weight="regular" />
       </Pressable>
       <View style={styles.mobileBrand}>
         <View style={styles.mobileMark}>
-          <PathIcon
-            aria-hidden
-            color={colors.routeViolet}
-            size={17}
-            weight="bold"
-          />
+          <PathIcon aria-hidden color={colors.routeViolet} size={17} weight="bold" />
         </View>
         <Text style={styles.mobileBrandText}>TodoDodo</Text>
       </View>

@@ -42,6 +42,7 @@ function assertAllowedKeys(
   allowedKeys: readonly string[],
 ): void {
   const allowed = new Set(allowedKeys);
+
   if (Object.keys(value).some((key) => !allowed.has(key))) {
     throw validationError('The request contains an unsupported field.');
   }
@@ -53,6 +54,7 @@ function parseTitle(value: unknown): string {
   }
 
   const title = value.trim();
+
   if (title.length < 1 || title.length > 240) {
     throw validationError('Title must be between 1 and 240 characters.');
   }
@@ -90,6 +92,7 @@ export function parseIsoDate(value: unknown): string | null {
   }
 
   const match = ISO_DATE_PATTERN.exec(value);
+
   if (!match) {
     throw validationError('Due date must use YYYY-MM-DD.');
   }
@@ -98,6 +101,7 @@ export function parseIsoDate(value: unknown): string | null {
   const month = Number(match[2]);
   const day = Number(match[3]);
   const parsed = new Date(Date.UTC(year, month - 1, day));
+
   if (
     parsed.getUTCFullYear() !== year ||
     parsed.getUTCMonth() !== month - 1 ||
@@ -113,6 +117,7 @@ export async function readJsonObject(
   request: Request,
 ): Promise<Record<string, unknown>> {
   const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
+
   if (!contentType.startsWith('application/json')) {
     throw new HttpError(
       415,
@@ -122,11 +127,13 @@ export async function readJsonObject(
   }
 
   const declaredLength = Number(request.headers.get('content-length') ?? 0);
+
   if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
     throw new HttpError(413, 'payload_too_large', 'Request body is too large.');
   }
 
   const body = await request.text();
+
   if (new TextEncoder().encode(body).byteLength > MAX_BODY_BYTES) {
     throw new HttpError(413, 'payload_too_large', 'Request body is too large.');
   }
@@ -137,6 +144,7 @@ export async function readJsonObject(
     if (error instanceof HttpError) {
       throw error;
     }
+
     throw validationError('Request body must be valid JSON.');
   }
 }
@@ -145,11 +153,13 @@ export function parseCredentials(
   value: Record<string, unknown>,
 ): CredentialsInput {
   assertAllowedKeys(value, ['email', 'password']);
+
   if (typeof value.email !== 'string' || value.email.trim().length > 320) {
     throw validationError('A valid email address is required.');
   }
 
   const email = value.email.trim().toLowerCase();
+
   if (!email || !email.includes('@')) {
     throw validationError('A valid email address is required.');
   }
@@ -181,6 +191,7 @@ export function parseUpdateTask(
   value: Record<string, unknown>,
 ): UpdateTaskInput {
   assertAllowedKeys(value, ['title', 'notes', 'dueDate', 'completed']);
+
   if (Object.keys(value).length === 0) {
     throw validationError('At least one task field is required.');
   }
@@ -195,16 +206,20 @@ export function parseUpdateTask(
   if ('title' in value) {
     update.title = parseTitle(value.title);
   }
+
   if ('notes' in value) {
     update.notes = parseNotes(value.notes);
   }
+
   if ('dueDate' in value) {
     update.dueDate = parseIsoDate(value.dueDate);
   }
+
   if ('completed' in value) {
     if (typeof value.completed !== 'boolean') {
       throw validationError('Completed must be a boolean.');
     }
+
     update.completed = value.completed;
   }
 
@@ -221,6 +236,7 @@ export function parsePageSize(value: string | null): number {
   }
 
   const limit = Number(value);
+
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 50) {
     throw validationError('Limit must be an integer between 1 and 50.');
   }
@@ -230,9 +246,11 @@ export function parsePageSize(value: string | null): number {
 
 export function parseSearchQuery(value: string): string {
   const query = value.trim();
+
   if (query.length > 240) {
     throw validationError('Search query must be at most 240 characters.');
   }
+
   return query;
 }
 
@@ -283,15 +301,18 @@ export function parseCursor(
     if (error instanceof HttpError) {
       throw error;
     }
+
     throw validationError('Cursor is invalid.');
   }
   const object = expectObject(cursor);
   assertAllowedKeys(object, ['createdAt', 'id']);
+
   if (typeof object.createdAt !== 'string') {
     throw validationError('Cursor is invalid.');
   }
 
   const timestamp = new Date(object.createdAt);
+
   if (Number.isNaN(timestamp.getTime())) {
     throw validationError('Cursor is invalid.');
   }

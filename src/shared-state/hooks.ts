@@ -25,7 +25,7 @@ const EMPTY_COLLECTION: TaskCollection = Object.freeze({
 function selectCollection(snapshot: TasksSnapshot, key: string): TaskCollectionView {
   const collection = snapshot.collections[key] ?? EMPTY_COLLECTION;
   return {
-    tasks: collection.ids.flatMap((id) => snapshot.byId[id] ? [snapshot.byId[id]] : []),
+    tasks: collection.ids.flatMap((id) => (snapshot.byId[id] ? [snapshot.byId[id]] : [])),
     nextCursor: collection.nextCursor,
     status: collection.status,
     error: collection.error,
@@ -33,16 +33,15 @@ function selectCollection(snapshot: TasksSnapshot, key: string): TaskCollectionV
   };
 }
 
-function equalTaskCollectionView(
-  left: TaskCollectionView,
-  right: TaskCollectionView,
-): boolean {
-  return left.nextCursor === right.nextCursor &&
+function equalTaskCollectionView(left: TaskCollectionView, right: TaskCollectionView): boolean {
+  return (
+    left.nextCursor === right.nextCursor &&
     left.status === right.status &&
     left.error === right.error &&
     left.offline === right.offline &&
     left.tasks.length === right.tasks.length &&
-    left.tasks.every((task, index) => task === right.tasks[index]);
+    left.tasks.every((task, index) => task === right.tasks[index])
+  );
 }
 
 function useTasksSelector<T>(
@@ -69,9 +68,7 @@ export function useTaskDialog(): TaskDialog {
 }
 
 export function useTask(taskId: string | null): TaskRecord | null {
-  return useTasksSelector(
-    (snapshot) => taskId ? snapshot.byId[taskId] ?? null : null,
-  );
+  return useTasksSelector((snapshot) => (taskId ? (snapshot.byId[taskId] ?? null) : null));
 }
 
 export function useInboxTasks(): TaskCollectionView {
@@ -83,10 +80,7 @@ export function useInboxTasks(): TaskCollectionView {
 
 export function useSearchTasks(query: string): TaskCollectionView {
   const key = searchCollectionKey(query);
-  return useTasksSelector(
-    (snapshot) => selectCollection(snapshot, key),
-    equalTaskCollectionView,
-  );
+  return useTasksSelector((snapshot) => selectCollection(snapshot, key), equalTaskCollectionView);
 }
 
 export function useTaskSummary(): TaskSummaryView {

@@ -48,6 +48,7 @@ export function getNativeSupabaseClient(): SupabaseClient {
 
 export async function getNativeAccessToken(): Promise<string | null> {
   const { data, error } = await getNativeSupabaseClient().auth.getSession();
+
   if (error) {
     throw new ApiError(error.message, {
       status: error.status ?? 0,

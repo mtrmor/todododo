@@ -43,9 +43,10 @@ describe("API request policy", () => {
   it("serializes session refreshes after concurrent 401 GET responses", async () => {
     let releaseRefresh: (() => void) | undefined;
     const refreshHandler = vi.fn(
-      () => new Promise<null>((resolve) => {
-        releaseRefresh = () => resolve(null);
-      }),
+      () =>
+        new Promise<null>((resolve) => {
+          releaseRefresh = () => resolve(null);
+        }),
     );
     const unregister = registerSessionRefresh(refreshHandler);
     const counts = new Map<string, number>();
@@ -110,16 +111,11 @@ describe("API request policy", () => {
     const unregister = registerSessionRefresh(refreshHandler);
 
     try {
-      await expect(refreshSessionSerialized()).rejects.toThrow(
-        "session endpoint unavailable",
-      );
+      await expect(refreshSessionSerialized()).rejects.toThrow("session endpoint unavailable");
 
       unavailable = false;
       await expect(
-        Promise.all([
-          ensureCsrfTokenForCookieMutation(),
-          ensureCsrfTokenForCookieMutation(),
-        ]),
+        Promise.all([ensureCsrfTokenForCookieMutation(), ensureCsrfTokenForCookieMutation()]),
       ).resolves.toEqual([undefined, undefined]);
 
       expect(refreshHandler).toHaveBeenCalledTimes(2);

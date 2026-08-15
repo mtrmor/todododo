@@ -14,6 +14,7 @@ function throwDatabaseError(error: DatabaseError | null): never {
   if (error?.code === '42501') {
     throw new HttpError(403, 'forbidden', 'The operation is not allowed.');
   }
+
   if (
     error?.code === '23505' ||
     error?.code === '23514' ||
@@ -75,6 +76,7 @@ export async function listTasks(
   }
 
   const { data, error } = await query;
+
   if (error) {
     throwDatabaseError(error);
   }
@@ -98,6 +100,7 @@ export async function searchTasks(
     cursor_id: cursor?.id ?? null,
     page_size: pageSize + 1,
   });
+
   if (error) {
     throwDatabaseError(error);
   }
@@ -115,9 +118,11 @@ export async function taskSummary(
       .select('id', { count: 'exact', head: true })
       .eq('completed', true),
   ]);
+
   if (totalResult.error) {
     throwDatabaseError(totalResult.error);
   }
+
   if (completedResult.error) {
     throwDatabaseError(completedResult.error);
   }
@@ -136,9 +141,11 @@ export async function getTask(
     .select(TASK_COLUMNS)
     .eq('id', taskId)
     .maybeSingle();
+
   if (error) {
     throwDatabaseError(error);
   }
+
   if (!data) {
     throw new HttpError(404, 'not_found', 'Task not found.');
   }
@@ -164,6 +171,7 @@ export async function createTask(
     })
     .select(TASK_COLUMNS)
     .single();
+
   if (error) {
     throwDatabaseError(error);
   }
@@ -177,15 +185,19 @@ export async function updateTask(
   input: UpdateTaskInput,
 ): Promise<TaskRecord> {
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
   if (input.title !== undefined) {
     update.title = input.title;
   }
+
   if (input.notes !== undefined) {
     update.notes = input.notes;
   }
+
   if (input.dueDate !== undefined) {
     update.due_date = input.dueDate;
   }
+
   if (input.completed !== undefined) {
     update.completed = input.completed;
     update.completed_at = input.completed ? new Date().toISOString() : null;
@@ -197,9 +209,11 @@ export async function updateTask(
     .eq('id', taskId)
     .select(TASK_COLUMNS)
     .maybeSingle();
+
   if (error) {
     throwDatabaseError(error);
   }
+
   if (!data) {
     throw new HttpError(404, 'not_found', 'Task not found.');
   }
@@ -217,9 +231,11 @@ export async function deleteTask(
     .eq('id', taskId)
     .select('id')
     .maybeSingle();
+
   if (error) {
     throwDatabaseError(error);
   }
+
   if (!data) {
     throw new HttpError(404, 'not_found', 'Task not found.');
   }

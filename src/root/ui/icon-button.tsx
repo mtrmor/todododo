@@ -3,7 +3,10 @@ import { Pressable, type PressableProps } from "react-native";
 
 import { colors, layout, radii } from "@/platform/theme";
 
-export type IconButtonProps = Omit<PressableProps, "children"> & { label: string; children: ReactNode };
+export type IconButtonProps = Omit<PressableProps, "children"> & {
+  label: string;
+  children: ReactNode;
+};
 
 export function IconButton({ label, children, style, ...props }: IconButtonProps) {
   return (

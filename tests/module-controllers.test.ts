@@ -44,13 +44,18 @@ function deferred<T>() {
 
 function collectionApi() {
   return {
-    getTasks: vi.fn(async (_options: GetTasksOptions = {}): Promise<TaskPage> => ({
-      items: [], nextCursor: null,
-    })),
-    setTaskCompleted: vi.fn(async (taskId: string, completed: boolean) => task(taskId, {
-      completed,
-      completedAt: completed ? "2026-08-15T09:00:00.000Z" : null,
-    })),
+    getTasks: vi.fn(
+      async (_options: GetTasksOptions = {}): Promise<TaskPage> => ({
+        items: [],
+        nextCursor: null,
+      }),
+    ),
+    setTaskCompleted: vi.fn(async (taskId: string, completed: boolean) =>
+      task(taskId, {
+        completed,
+        completedAt: completed ? "2026-08-15T09:00:00.000Z" : null,
+      }),
+    ),
   };
 }
 
@@ -102,7 +107,8 @@ describe("module-owned task controllers", () => {
     store.bindUser("user-a");
     const api = collectionApi();
     const stale = deferred<TaskPage>();
-    api.getTasks.mockImplementationOnce(() => stale.promise)
+    api.getTasks
+      .mockImplementationOnce(() => stale.promise)
       .mockResolvedValueOnce({ items: [task("fresh")], nextCursor: null });
     const controller = new SearchController(store, api, noLifecycle);
     controller.setQuery("old");

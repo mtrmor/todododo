@@ -56,12 +56,14 @@ export async function verifyCsrfToken(
   secret: string,
 ): Promise<boolean> {
   const parts = token.split('.');
+
   if (parts.length !== 3 || parts[0] !== TOKEN_VERSION) {
     return false;
   }
 
   const nonce = fromBase64Url(parts[1]);
   const signature = fromBase64Url(parts[2]);
+
   if (!nonce || nonce.byteLength !== 32 || !signature) {
     return false;
   }

@@ -1,4 +1,5 @@
 const { defineConfig, globalIgnores } = require("eslint/config");
+const stylistic = require("@stylistic/eslint-plugin");
 const expoConfig = require("eslint-config-expo/flat");
 
 const moduleNames = ["auth", "sidebar", "task-list", "search", "task-detail", "placeholder-screen"];
@@ -46,37 +47,47 @@ const moduleBoundaryRules = moduleNames.flatMap((moduleName) => {
       files: [`src/modules/${moduleName}/**/*.{ts,tsx}`],
       ignores: [`src/modules/${moduleName}/**/*-controller.ts`],
       rules: {
-        "no-restricted-imports": ["error", {
-          paths: [{
-            name: "react",
-            importNames: ["useSyncExternalStore"],
-            message: "UI modules must use domain hooks from Shared State.",
-          }],
-          patterns: commonPatterns.concat({
-            group: [
-              "@/shared-state/internal",
-              "@/shared-state/internal/**",
-              "@/shared-state/external-store",
-              "@/shared-state/tasks-store",
-              "@/shared-state/ui-store",
-              "@/shared-state/broadcast-bridge",
+        "no-restricted-imports": [
+          "error",
+          {
+            paths: [
+              {
+                name: "react",
+                importNames: ["useSyncExternalStore"],
+                message: "UI modules must use domain hooks from Shared State.",
+              },
             ],
-            message: "Only module controllers may access internal Shared State.",
-          }),
-        }],
+            patterns: commonPatterns.concat({
+              group: [
+                "@/shared-state/internal",
+                "@/shared-state/internal/**",
+                "@/shared-state/external-store",
+                "@/shared-state/tasks-store",
+                "@/shared-state/ui-store",
+                "@/shared-state/broadcast-bridge",
+              ],
+              message: "Only module controllers may access internal Shared State.",
+            }),
+          },
+        ],
       },
     },
     {
       files: [`src/modules/${moduleName}/**/*-controller.ts`],
       rules: {
-        "no-restricted-imports": ["error", {
-          paths: [{
-            name: "react",
-            importNames: ["useSyncExternalStore"],
-            message: "Controllers are framework-independent and never subscribe through React.",
-          }],
-          patterns: commonPatterns,
-        }],
+        "no-restricted-imports": [
+          "error",
+          {
+            paths: [
+              {
+                name: "react",
+                importNames: ["useSyncExternalStore"],
+                message: "Controllers are framework-independent and never subscribe through React.",
+              },
+            ],
+            patterns: commonPatterns,
+          },
+        ],
       },
     },
   ];
@@ -86,20 +97,50 @@ module.exports = defineConfig([
   globalIgnores(["dist/**", ".expo/**", "coverage/**", "node_modules/**", "supabase/.temp/**"]),
   expoConfig,
   {
+    plugins: {
+      "@stylistic": stylistic,
+    },
+    rules: {
+      "@stylistic/max-len": [
+        "error",
+        {
+          code: 100,
+          comments: 100,
+          tabWidth: 2,
+          ignoreUrls: true,
+          ignoreStrings: true,
+          ignoreTemplateLiterals: true,
+          ignoreRegExpLiterals: true,
+        },
+      ],
+      "@stylistic/padding-line-between-statements": [
+        "error",
+        { blankLine: "always", prev: "*", next: "if" },
+        { blankLine: "always", prev: "if", next: "*" },
+      ],
+      curly: ["error", "all"],
+      "@stylistic/max-statements-per-line": ["error", { max: 1 }],
+    },
+  },
+  {
     files: ["src/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error",
+      "no-restricted-syntax": [
+        "error",
         {
           selector: "ImportDeclaration[source.value=/^\\.\\./]",
-          message: "Parent-relative imports are forbidden; use a @/ alias for architectural imports.",
+          message:
+            "Parent-relative imports are forbidden; use a @/ alias for architectural imports.",
         },
         {
           selector: "ExportNamedDeclaration[source.value=/^\\.\\./]",
-          message: "Parent-relative exports are forbidden; use a @/ alias for architectural imports.",
+          message:
+            "Parent-relative exports are forbidden; use a @/ alias for architectural imports.",
         },
         {
           selector: "ExportAllDeclaration[source.value=/^\\.\\./]",
-          message: "Parent-relative exports are forbidden; use a @/ alias for architectural imports.",
+          message:
+            "Parent-relative exports are forbidden; use a @/ alias for architectural imports.",
         },
         {
           selector: "ImportExpression[source.value=/^\\.\\./]",
@@ -112,70 +153,118 @@ module.exports = defineConfig([
     files: ["src/app/**/*.{ts,tsx}"],
     ignores: ["src/app/api/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [{
-        group: forbiddenLayerImports("app"),
-        message: "App routes may depend only on Root, Modules, Platform, and Shared State.",
-      }]}],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: forbiddenLayerImports("app"),
+              message: "App routes may depend only on Root, Modules, Platform, and Shared State.",
+            },
+          ],
+        },
+      ],
     },
   },
   {
     files: ["src/app/api/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [{
-        group: forbiddenLayerImports("app", ["server"]),
-        message: "App API routes may additionally depend on Server, but not directly on Domain.",
-      }]}],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: forbiddenLayerImports("app", ["server"]),
+              message:
+                "App API routes may additionally depend on Server, but not directly on Domain.",
+            },
+          ],
+        },
+      ],
     },
   },
   {
     files: ["src/root/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [{
-        group: forbiddenLayerImports("root"),
-        message: "Root may depend only on Modules, Platform, and Shared State.",
-      }]}],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: forbiddenLayerImports("root"),
+              message: "Root may depend only on Modules, Platform, and Shared State.",
+            },
+          ],
+        },
+      ],
     },
   },
   {
     files: ["src/platform/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [{
-        group: forbiddenLayerImports("platform"),
-        message: "Platform may depend only on Domain and external packages.",
-      }]}],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: forbiddenLayerImports("platform"),
+              message: "Platform may depend only on Domain and external packages.",
+            },
+          ],
+        },
+      ],
     },
   },
   {
     files: ["src/shared-state/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [
+      "no-restricted-imports": [
+        "error",
         {
-          group: forbiddenLayerImports("shared-state"),
-          message: "Shared State may depend only on Domain and external state-free packages.",
+          patterns: [
+            {
+              group: forbiddenLayerImports("shared-state"),
+              message: "Shared State may depend only on Domain and external state-free packages.",
+            },
+            {
+              group: ["@supabase/**", "*powersync*", "*sqlite*", "*watermelondb*"],
+              message: "Shared State cannot access network or database clients.",
+            },
+          ],
         },
-        {
-          group: ["@supabase/**", "*powersync*", "*sqlite*", "*watermelondb*"],
-          message: "Shared State cannot access network or database clients.",
-        },
-      ]}],
+      ],
     },
   },
   {
     files: ["src/domain/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [{
-        group: forbiddenLayerImports("domain"),
-        message: "Domain cannot depend on other application layers.",
-      }]}],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: forbiddenLayerImports("domain"),
+              message: "Domain cannot depend on other application layers.",
+            },
+          ],
+        },
+      ],
     },
   },
   {
     files: ["src/server/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [{
-        group: forbiddenLayerImports("server"),
-        message: "Server may depend only on Domain and external server packages.",
-      }]}],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: forbiddenLayerImports("server"),
+              message: "Server may depend only on Domain and external server packages.",
+            },
+          ],
+        },
+      ],
     },
   },
   ...moduleBoundaryRules,

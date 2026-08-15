@@ -8,10 +8,7 @@ export default function AuthLayout() {
   if (status === "loading") {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator
-          accessibilityLabel="Checking your session"
-          color="#6254D8"
-        />
+        <ActivityIndicator accessibilityLabel="Checking your session" color="#6254D8" />
       </View>
     );
   }

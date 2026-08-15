@@ -27,9 +27,11 @@ export function getTasks(options: GetTasksOptions = {}): Promise<TaskPage> {
   if (query) {
     params.set("q", query);
   }
+
   if (options.cursor) {
     params.set("cursor", options.cursor);
   }
+
   if (options.limit !== undefined) {
     params.set("limit", String(options.limit));
   }
@@ -40,10 +42,7 @@ export function getTasks(options: GetTasksOptions = {}): Promise<TaskPage> {
   });
 }
 
-export function getTask(
-  taskId: string,
-  options: RequestOptions = {},
-): Promise<TaskRecord> {
+export function getTask(taskId: string, options: RequestOptions = {}): Promise<TaskRecord> {
   return requestJson<TaskRecord>(taskPath(taskId), { signal: options.signal });
 }
 
@@ -53,10 +52,7 @@ export function getTaskSummary(options: RequestOptions = {}): Promise<TaskSummar
   });
 }
 
-export function createTask(
-  draft: TaskDraft,
-  options: RequestOptions = {},
-): Promise<TaskRecord> {
+export function createTask(draft: TaskDraft, options: RequestOptions = {}): Promise<TaskRecord> {
   if (typeof globalThis.crypto?.randomUUID !== "function") {
     throw new ApiError("This device cannot create secure task identifiers", {
       status: 0,
@@ -95,10 +91,7 @@ export function setTaskCompleted(
   });
 }
 
-export async function deleteTask(
-  taskId: string,
-  options: RequestOptions = {},
-): Promise<void> {
+export async function deleteTask(taskId: string, options: RequestOptions = {}): Promise<void> {
   await requestJson(taskPath(taskId), {
     method: "DELETE",
     body: {},

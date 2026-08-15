@@ -28,7 +28,9 @@ export class SearchController {
 
   connect(): () => void {
     const refresh = () => {
-      if (this.#query) void this.load("refresh");
+      if (this.#query) {
+        void this.load("refresh");
+      }
     };
     const stopActive = this.subscribeToRefresh(refresh);
     const stopInvalidation = taskInvalidationBus.subscribe(refresh);
@@ -43,17 +45,30 @@ export class SearchController {
 
   setQuery(query: string): void {
     const normalized = normalizeSearchQuery(query);
-    if (normalized === this.#query) return;
+
+    if (normalized === this.#query) {
+      return;
+    }
+
     this.#request?.controller.abort();
     this.#request = null;
     this.#query = normalized;
     this.store.activateSearch(searchCollectionKey(normalized));
-    if (normalized) void this.load("initial");
+
+    if (normalized) {
+      void this.load("initial");
+    }
   }
 
   load(mode: "initial" | "refresh" = "refresh"): Promise<void> {
-    if (!this.#query) return Promise.resolve();
-    if (this.#request) return this.#request.promise;
+    if (!this.#query) {
+      return Promise.resolve();
+    }
+
+    if (this.#request) {
+      return this.#request.promise;
+    }
+
     const query = this.#query;
     const key = searchCollectionKey(query);
     const current = this.store.getCollection(key);
@@ -63,52 +78,98 @@ export class SearchController {
       key,
       mode === "initial" && current.ids.length === 0 ? "loading" : "refreshing",
     );
-    const promise = this.#fetchWindow(query, Math.max(PAGE_SIZE, current.ids.length), controller.signal)
+    const promise = this.#fetchWindow(
+      query,
+      Math.max(PAGE_SIZE, current.ids.length),
+      controller.signal,
+    )
       .then((page) => {
-        if (!controller.signal.aborted && query === this.#query && this.store.isReadTokenCurrent(token)) {
+        if (
+          !controller.signal.aborted &&
+          query === this.#query &&
+          this.store.isReadTokenCurrent(token)
+        ) {
           this.store.replaceCollection(key, page.items, page.nextCursor);
         }
       })
       .catch((error: unknown) => {
-        if (!isAbortError(error) && !controller.signal.aborted && query === this.#query &&
-          this.store.isReadTokenCurrent(token)) {
-          this.store.failCollection(key, getErrorMessage(error, "Search could not be loaded."), isOffline());
+        if (
+          !isAbortError(error) &&
+          !controller.signal.aborted &&
+          query === this.#query &&
+          this.store.isReadTokenCurrent(token)
+        ) {
+          this.store.failCollection(
+            key,
+            getErrorMessage(error, "Search could not be loaded."),
+            isOffline(),
+          );
         }
       })
       .finally(() => {
-        if (this.#request?.promise === promise) this.#request = null;
+        if (this.#request?.promise === promise) {
+          this.#request = null;
+        }
       });
     this.#request = { controller, promise };
     return promise;
   }
 
   loadMore(): Promise<void> {
-    if (!this.#query) return Promise.resolve();
+    if (!this.#query) {
+      return Promise.resolve();
+    }
+
     const query = this.#query;
     const key = searchCollectionKey(query);
     const current = this.store.getCollection(key);
-    if (!current.nextCursor) return Promise.resolve();
-    if (this.#request) return this.#request.promise;
+
+    if (!current.nextCursor) {
+      return Promise.resolve();
+    }
+
+    if (this.#request) {
+      return this.#request.promise;
+    }
+
     const controller = new AbortController();
     const token = this.store.captureReadToken();
     this.store.beginCollection(key, "loading-more");
-    const promise = this.api.getTasks({
-      query,
-      cursor: current.nextCursor,
-      limit: PAGE_SIZE,
-      signal: controller.signal,
-    }).then((page) => {
-      if (!controller.signal.aborted && query === this.#query && this.store.isReadTokenCurrent(token)) {
-        this.store.appendCollection(key, page.items, page.nextCursor);
-      }
-    }).catch((error: unknown) => {
-      if (!isAbortError(error) && !controller.signal.aborted && query === this.#query &&
-        this.store.isReadTokenCurrent(token)) {
-        this.store.failCollection(key, getErrorMessage(error, "More results could not be loaded."), isOffline());
-      }
-    }).finally(() => {
-      if (this.#request?.promise === promise) this.#request = null;
-    });
+    const promise = this.api
+      .getTasks({
+        query,
+        cursor: current.nextCursor,
+        limit: PAGE_SIZE,
+        signal: controller.signal,
+      })
+      .then((page) => {
+        if (
+          !controller.signal.aborted &&
+          query === this.#query &&
+          this.store.isReadTokenCurrent(token)
+        ) {
+          this.store.appendCollection(key, page.items, page.nextCursor);
+        }
+      })
+      .catch((error: unknown) => {
+        if (
+          !isAbortError(error) &&
+          !controller.signal.aborted &&
+          query === this.#query &&
+          this.store.isReadTokenCurrent(token)
+        ) {
+          this.store.failCollection(
+            key,
+            getErrorMessage(error, "More results could not be loaded."),
+            isOffline(),
+          );
+        }
+      })
+      .finally(() => {
+        if (this.#request?.promise === promise) {
+          this.#request = null;
+        }
+      });
     this.#request = { controller, promise };
     return promise;
   }
@@ -119,10 +180,12 @@ export class SearchController {
     const transaction = this.store.beginCompletion(taskId, completed, key);
     try {
       const task = await this.api.setTaskCompleted(taskId, completed);
+
       if (this.store.isUserGenerationCurrent(generation)) {
         this.store.confirmCompletion(task, key);
         taskInvalidationBus.publish();
       }
+
       return task;
     } catch (error) {
       if (transaction && this.store.isUserGenerationCurrent(generation)) {
@@ -132,6 +195,7 @@ export class SearchController {
           isOffline(),
         );
       }
+
       throw error;
     }
   }
@@ -145,7 +209,11 @@ export class SearchController {
       const page = await this.api.getTasks({ query, cursor, limit: PAGE_SIZE, signal });
       items.push(...page.items);
       nextCursor = page.nextCursor;
-      if (!nextCursor || items.length >= targetCount || seen.has(nextCursor)) break;
+
+      if (!nextCursor || items.length >= targetCount || seen.has(nextCursor)) {
+        break;
+      }
+
       seen.add(nextCursor);
       cursor = nextCursor;
     } while (items.length < targetCount);

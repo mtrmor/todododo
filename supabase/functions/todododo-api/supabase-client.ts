@@ -47,9 +47,11 @@ function appendCookie(
 
 function parseBearerToken(header: string): string {
   const match = /^Bearer ([^\s]+)$/u.exec(header);
+
   if (!match) {
     throw new HttpError(401, 'unauthorized', 'Authentication is required.');
   }
+
   return match[1];
 }
 
@@ -127,9 +129,11 @@ export function createRequestSupabase(
   allowBearer = true,
 ): RequestSupabase {
   const authorization = request.headers.get('authorization');
+
   if (authorization && allowBearer) {
     return createBearerClient(authorization, config);
   }
+
   if (authorization && !allowBearer) {
     throw new HttpError(
       400,
@@ -147,6 +151,7 @@ export async function authenticatedUser(
   const { data, error } = await supabase.client.auth.getUser(
     supabase.accessToken ?? undefined,
   );
+
   if (error || !data.user) {
     throw new HttpError(401, 'unauthorized', 'Authentication is required.');
   }
@@ -160,6 +165,7 @@ export async function optionalUser(
   const { data, error } = await supabase.client.auth.getUser(
     supabase.accessToken ?? undefined,
   );
+
   if (error || !data.user) {
     return null;
   }

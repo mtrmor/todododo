@@ -7,10 +7,22 @@ type ScreenStateProps = Readonly<{ title?: string; message?: string; loading?: b
 
 export function ScreenState({ title, message, loading = false }: ScreenStateProps) {
   return (
-    <View accessibilityRole={loading ? "progressbar" : undefined} style={{ alignItems: "center", justifyContent: "center", gap: spacing.sm, padding: spacing.xl }}>
+    <View
+      accessibilityRole={loading ? "progressbar" : undefined}
+      style={{
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.sm,
+        padding: spacing.xl,
+      }}
+    >
       {loading ? <ActivityIndicator color={colors.routeViolet} /> : null}
       {title ? <AppText variant="bodySemibold">{title}</AppText> : null}
-      {message ? <AppText tone="muted" style={{ textAlign: "center" }}>{message}</AppText> : null}
+      {message ? (
+        <AppText tone="muted" style={{ textAlign: "center" }}>
+          {message}
+        </AppText>
+      ) : null}
     </View>
   );
 }

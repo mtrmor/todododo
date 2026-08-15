@@ -37,6 +37,8 @@
     "use-sync-external-store": "1.6.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.6",
+    "@stylistic/eslint-plugin": "5.10.0",
     "@types/node": "26.2.0",
     "@types/react": "~19.2.2",
     "@types/react-test-renderer": "19.1.0",
@@ -60,6 +62,12 @@
     "export:web": "expo export --platform web",
     "check:web-export": "node scripts/check-web-export.mjs",
     "lint": "eslint .",
+    "format": "npm run format:biome && npm run format:deno",
+    "format:check": "npm run format:biome:check && npm run format:deno:check",
+    "format:biome": "biome format --write .",
+    "format:biome:check": "biome format .",
+    "format:deno": "deno fmt --config supabase/functions/todododo-api/deno.json supabase/functions/todododo-api",
+    "format:deno:check": "deno fmt --check --config supabase/functions/todododo-api/deno.json supabase/functions/todododo-api",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

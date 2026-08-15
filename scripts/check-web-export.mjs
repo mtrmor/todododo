@@ -7,13 +7,7 @@ const distRoot = join(projectRoot, "dist");
 const clientRoot = join(distRoot, "client");
 const serverRoot = join(distRoot, "server");
 const routesPath = join(serverRoot, "_expo", "routes.json");
-const apiRoutePath = join(
-  serverRoot,
-  "_expo",
-  "functions",
-  "api",
-  "[...path]+api.js",
-);
+const apiRoutePath = join(serverRoot, "_expo", "functions", "api", "[...path]+api.js");
 
 function fail(message) {
   throw new Error(`Web export check failed: ${message}`);
@@ -32,9 +26,11 @@ if (!existsSync(routesPath) || !existsSync(apiRoutePath)) {
 
 const routes = JSON.parse(readFileSync(routesPath, "utf8"));
 const csp = routes.headers?.["Content-Security-Policy"];
+
 if (typeof csp !== "string") {
   fail("Content-Security-Policy is missing");
 }
+
 if (!csp.includes("connect-src 'self'") || csp.includes("'unsafe-eval'")) {
   fail("CSP does not keep network access same-origin or permits unsafe-eval");
 }
@@ -42,17 +38,17 @@ if (!csp.includes("connect-src 'self'") || csp.includes("'unsafe-eval'")) {
 const htmlFiles = filesUnder(serverRoot).filter((file) => extname(file) === ".html");
 for (const htmlFile of htmlFiles) {
   const html = readFileSync(htmlFile, "utf8");
-  const inlineScripts = html.matchAll(
-    /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/giu,
-  );
+  const inlineScripts = html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/giu);
 
   for (const match of inlineScripts) {
-    if (!match[1]) continue;
+    if (!match[1]) {
+      continue;
+    }
+
     const hash = createHash("sha256").update(match[1]).digest("base64");
+
     if (!csp.includes(`'sha256-${hash}'`)) {
-      fail(
-        `${relative(projectRoot, htmlFile)} contains an inline script without a CSP hash`,
-      );
+      fail(`${relative(projectRoot, htmlFile)} contains an inline script without a CSP hash`);
     }
   }
 }
@@ -77,6 +73,7 @@ for (const forbidden of [
 }
 
 const bundledFonts = clientFiles.filter((file) => extname(file) === ".ttf");
+
 if (bundledFonts.length !== 4) {
   fail(`expected 4 local font files, found ${bundledFonts.length}`);
 }
