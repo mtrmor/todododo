@@ -1,4 +1,5 @@
 export { ApiError, getErrorMessage, isAbortError } from "@/platform/api/api-error";
+export { isNativeDriverApplicable } from "@/platform/animation";
 export {
   createTask,
   deleteTask,
