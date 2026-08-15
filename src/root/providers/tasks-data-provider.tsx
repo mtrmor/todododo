@@ -1,10 +1,11 @@
 import { useEffect, useState, type PropsWithChildren } from "react";
 
 import { useAuth } from "@/platform/auth/auth-provider";
-import { tasksStore } from "@/shared-state/internal";
+import { useTaskStore } from "@/shared-state";
 
 /** Scopes the in-memory task cache to the authenticated user before mounting modules. */
 export function TasksDataProvider({ children }: PropsWithChildren) {
+  const tasksStore = useTaskStore();
   const { status, user } = useAuth();
   const userId = status === "authenticated" ? (user?.id ?? null) : null;
   const [boundUserId, setBoundUserId] = useState<string | null>(null);
@@ -24,7 +25,7 @@ export function TasksDataProvider({ children }: PropsWithChildren) {
         tasksStore.releaseUser(userId);
       }
     };
-  }, [userId]);
+  }, [tasksStore, userId]);
 
   return userId === boundUserId ? children : null;
 }

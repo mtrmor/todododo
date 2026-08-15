@@ -1,14 +1,13 @@
 export {
-  closeTask,
-  openCreateTask,
-  openTask,
   useInboxTasks,
   useSearchTasks,
   useTask,
   useTaskDialog,
+  useTaskDialogActions,
   useTaskMutation,
   useTaskSummary,
 } from "@/shared-state/hooks";
+export { useTaskStore, useUiStore } from "@/shared-state/store-context";
 export {
   INBOX_COLLECTION_KEY,
   normalizeSearchQuery,

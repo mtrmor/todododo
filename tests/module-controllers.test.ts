@@ -12,7 +12,7 @@ import { SidebarController } from "@/modules/sidebar/sidebar-controller";
 import { TaskDetailController } from "@/modules/task-detail/task-detail-controller";
 import { TaskListController } from "@/modules/task-list/task-list-controller";
 import { INBOX_COLLECTION_KEY, searchCollectionKey } from "@/shared-state";
-import { taskInvalidationBus, TasksStore } from "@/shared-state/internal";
+import { TaskInvalidationBus, TasksStore } from "@/shared-state/internal";
 
 vi.mock("@/platform/lifecycle/active-refresh", () => ({
   subscribeToActiveRefresh: () => () => undefined,
@@ -62,7 +62,11 @@ function collectionApi() {
 const noLifecycle = (_refresh: () => void) => vi.fn();
 
 describe("module-owned task controllers", () => {
-  beforeEach(() => taskInvalidationBus.resetForTests());
+  let invalidationBus: TaskInvalidationBus;
+
+  beforeEach(() => {
+    invalidationBus = new TaskInvalidationBus();
+  });
 
   it("deduplicates Inbox loads, appends pagination and cleans lifecycle", async () => {
     const store = new TasksStore();
@@ -71,7 +75,7 @@ describe("module-owned task controllers", () => {
     const first = deferred<TaskPage>();
     api.getTasks.mockImplementationOnce(() => first.promise);
     const stopLifecycle = vi.fn();
-    const controller = new TaskListController(store, api, () => stopLifecycle);
+    const controller = new TaskListController(store, invalidationBus, api, () => stopLifecycle);
     const stop = controller.connect();
     const duplicate = controller.load("initial");
     expect(api.getTasks).toHaveBeenCalledTimes(1);
@@ -94,7 +98,7 @@ describe("module-owned task controllers", () => {
     store.setSummary({ open: 1, total: 1, completed: 0 });
     const api = collectionApi();
     api.setTaskCompleted.mockRejectedValueOnce(new Error("offline"));
-    const controller = new TaskListController(store, api, noLifecycle);
+    const controller = new TaskListController(store, invalidationBus, api, noLifecycle);
     const request = controller.setCompleted("one", true);
     expect(store.getTask("one")?.completed).toBe(true);
     await expect(request).rejects.toThrow("offline");
@@ -110,7 +114,7 @@ describe("module-owned task controllers", () => {
     api.getTasks
       .mockImplementationOnce(() => stale.promise)
       .mockResolvedValueOnce({ items: [task("fresh")], nextCursor: null });
-    const controller = new SearchController(store, api, noLifecycle);
+    const controller = new SearchController(store, invalidationBus, api, noLifecycle);
     controller.setQuery("old");
     controller.setQuery("new");
     await controller.load("initial");
@@ -126,7 +130,7 @@ describe("module-owned task controllers", () => {
     store.bindUser("user-a");
     const response = deferred<{ open: number; total: number; completed: number }>();
     const api = { getTaskSummary: vi.fn(() => response.promise) };
-    const controller = new SidebarController(store, api, noLifecycle);
+    const controller = new SidebarController(store, invalidationBus, api, noLifecycle);
     const request = controller.load("initial");
     store.bindUser("user-b");
     response.resolve({ open: 9, total: 9, completed: 0 });
@@ -145,7 +149,7 @@ describe("module-owned task controllers", () => {
       updateTask: vi.fn(async (taskId: string, draft: TaskDraft) => task(taskId, draft)),
       deleteTask: vi.fn(async (_taskId: string) => undefined),
     };
-    const controller = new TaskDetailController(store, api);
+    const controller = new TaskDetailController(store, invalidationBus, api);
     await controller.create({ title: "Created", notes: "", dueDate: null });
     await controller.update("one", { title: "Updated", notes: "Note", dueDate: null });
     await controller.delete("one");

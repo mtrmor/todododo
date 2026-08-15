@@ -1,7 +1,7 @@
 import { createTask, deleteTask, getTask, updateTask } from "@/platform/api/tasks";
 import type { TaskDraft, TaskRecord, TaskSummary } from "@/domain/tasks";
 import { INBOX_COLLECTION_KEY } from "@/shared-state";
-import { taskInvalidationBus, tasksStore, type TasksStore } from "@/shared-state/internal";
+import type { TaskInvalidationBus, TasksStore } from "@/shared-state/internal";
 
 type TaskDetailApi = Readonly<{
   getTask: typeof getTask;
@@ -32,6 +32,7 @@ export class TaskDetailController {
 
   constructor(
     private readonly store: TasksStore,
+    private readonly invalidationBus: TaskInvalidationBus,
     private readonly api: TaskDetailApi = { getTask, createTask, updateTask, deleteTask },
   ) {}
 
@@ -86,7 +87,7 @@ export class TaskDetailController {
         this.store.setSummary(addToSummary(summary.data, task));
       }
 
-      taskInvalidationBus.publish();
+      this.invalidationBus.publish();
     }
 
     return task;
@@ -101,7 +102,7 @@ export class TaskDetailController {
       if (this.store.isUserGenerationCurrent(generation)) {
         this.store.invalidateReads();
         this.store.upsertTask(task);
-        taskInvalidationBus.publish();
+        this.invalidationBus.publish();
       }
 
       return task;
@@ -128,7 +129,7 @@ export class TaskDetailController {
           this.store.setSummary(removeFromSummary(summary.data, previous));
         }
 
-        taskInvalidationBus.publish();
+        this.invalidationBus.publish();
       }
     } finally {
       if (this.store.isUserGenerationCurrent(generation)) {
@@ -137,5 +138,3 @@ export class TaskDetailController {
     }
   }
 }
-
-export const taskDetailController = new TaskDetailController(tasksStore);

@@ -7,11 +7,12 @@ import { ConnectedTaskRow } from "@/modules/task-list/components/task-row/task-r
 import { useTaskList } from "@/modules/task-list/hooks/use-task-list";
 import { styles } from "@/modules/task-list/styles";
 import { Button, NoticeBanner, ScreenState } from "@/platform/ui";
-import { openCreateTask } from "@/shared-state";
+import { useTaskDialogActions } from "@/shared-state";
 
 export type TaskListModuleProps = { title?: string };
 
 export function TaskListModule({ title = "Inbox" }: TaskListModuleProps) {
+  const { openCreateTask } = useTaskDialogActions();
   const list = useTaskList();
   return (
     <View style={styles.screen}>

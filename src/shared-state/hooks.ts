@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useSyncExternalStoreWithSelector } from "use-sync-external-store/with-selector";
 
 import {
@@ -10,8 +11,8 @@ import {
   type TaskSummaryView,
   type TasksSnapshot,
 } from "@/shared-state/model";
-import { tasksStore } from "@/shared-state/tasks-store";
-import { uiStore, type TaskDialog, type UiSnapshot } from "@/shared-state/ui-store";
+import { useTaskStore, useUiStore } from "@/shared-state/store-context";
+import type { TaskDialog, UiSnapshot } from "@/shared-state/ui-store";
 
 const EMPTY_IDS: readonly string[] = Object.freeze([]);
 const EMPTY_COLLECTION: TaskCollection = Object.freeze({
@@ -48,6 +49,8 @@ function useTasksSelector<T>(
   selector: (snapshot: TasksSnapshot) => T,
   isEqual: (left: T, right: T) => boolean = Object.is,
 ): T {
+  const tasksStore = useTaskStore();
+
   return useSyncExternalStoreWithSelector(
     tasksStore.subscribe,
     tasksStore.getSnapshot,
@@ -58,6 +61,8 @@ function useTasksSelector<T>(
 }
 
 export function useTaskDialog(): TaskDialog {
+  const uiStore = useUiStore();
+
   return useSyncExternalStoreWithSelector(
     uiStore.subscribe,
     uiStore.getSnapshot,
@@ -91,14 +96,15 @@ export function useTaskMutation(taskId: string): TaskMutationKind | null {
   return useTasksSelector((snapshot) => snapshot.pendingById[taskId] ?? null);
 }
 
-export function openCreateTask(): void {
-  uiStore.openCreateTask();
-}
+export function useTaskDialogActions() {
+  const uiStore = useUiStore();
 
-export function openTask(taskId: string): void {
-  uiStore.openTask(taskId);
-}
-
-export function closeTask(): void {
-  uiStore.closeTask();
+  return useMemo(
+    () => ({
+      openCreateTask: () => uiStore.openCreateTask(),
+      openTask: (taskId: string) => uiStore.openTask(taskId),
+      closeTask: () => uiStore.closeTask(),
+    }),
+    [uiStore],
+  );
 }

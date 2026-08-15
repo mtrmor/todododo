@@ -12,9 +12,10 @@ import { ConnectedSearchTaskRow } from "@/modules/search/components/search-task-
 import { useSearchModule } from "@/modules/search/hooks/use-search-module";
 import { styles } from "@/modules/search/styles";
 import { Button, NoticeBanner, ScreenState } from "@/platform/ui";
-import { openCreateTask } from "@/shared-state";
+import { useTaskDialogActions } from "@/shared-state";
 
 export function SearchModule() {
+  const { openCreateTask } = useTaskDialogActions();
   const search = useSearchModule();
   return (
     <View style={styles.screen}>

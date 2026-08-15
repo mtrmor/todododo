@@ -10,7 +10,7 @@ import { Text, View } from "react-native";
 import { NavigationButton } from "@/modules/sidebar/components/navigation-button/navigation-button";
 import { styles } from "@/modules/sidebar/components/navigation-section/styles";
 import type { SidebarRoute } from "@/modules/sidebar/sidebar-module";
-import { openCreateTask } from "@/shared-state";
+import { useTaskDialogActions } from "@/shared-state";
 
 export function NavigationSection({
   activeRoute,
@@ -23,6 +23,7 @@ export function NavigationSection({
   openCount: number;
   onNavigate: (route: SidebarRoute) => void;
 }) {
+  const { openCreateTask } = useTaskDialogActions();
   return (
     <View style={styles.container}>
       <NavigationButton

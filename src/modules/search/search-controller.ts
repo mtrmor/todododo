@@ -3,7 +3,7 @@ import { getTasks, setTaskCompleted } from "@/platform/api/tasks";
 import type { TaskPage, TaskRecord } from "@/domain/tasks";
 import { subscribeToActiveRefresh } from "@/platform/lifecycle/active-refresh";
 import { normalizeSearchQuery, searchCollectionKey } from "@/shared-state";
-import { taskInvalidationBus, tasksStore, type TasksStore } from "@/shared-state/internal";
+import type { TaskInvalidationBus, TasksStore } from "@/shared-state/internal";
 
 const PAGE_SIZE = 50;
 
@@ -22,6 +22,7 @@ export class SearchController {
 
   constructor(
     private readonly store: TasksStore,
+    private readonly invalidationBus: TaskInvalidationBus,
     private readonly api: SearchApi = { getTasks, setTaskCompleted },
     private readonly subscribeToRefresh = subscribeToActiveRefresh,
   ) {}
@@ -33,7 +34,7 @@ export class SearchController {
       }
     };
     const stopActive = this.subscribeToRefresh(refresh);
-    const stopInvalidation = taskInvalidationBus.subscribe(refresh);
+    const stopInvalidation = this.invalidationBus.subscribe(refresh);
     return () => {
       stopActive();
       stopInvalidation();
@@ -183,7 +184,7 @@ export class SearchController {
 
       if (this.store.isUserGenerationCurrent(generation)) {
         this.store.confirmCompletion(task, key);
-        taskInvalidationBus.publish();
+        this.invalidationBus.publish();
       }
 
       return task;
@@ -220,5 +221,3 @@ export class SearchController {
     return { items, nextCursor };
   }
 }
-
-export const searchController = new SearchController(tasksStore);

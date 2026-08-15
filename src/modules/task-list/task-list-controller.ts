@@ -3,7 +3,7 @@ import { getTasks, setTaskCompleted } from "@/platform/api/tasks";
 import type { TaskPage, TaskRecord } from "@/domain/tasks";
 import { subscribeToActiveRefresh } from "@/platform/lifecycle/active-refresh";
 import { INBOX_COLLECTION_KEY } from "@/shared-state";
-import { taskInvalidationBus, tasksStore, type TasksStore } from "@/shared-state/internal";
+import type { TaskInvalidationBus, TasksStore } from "@/shared-state/internal";
 
 const PAGE_SIZE = 50;
 
@@ -21,6 +21,7 @@ export class TaskListController {
 
   constructor(
     private readonly store: TasksStore,
+    private readonly invalidationBus: TaskInvalidationBus,
     private readonly api: TaskListApi = { getTasks, setTaskCompleted },
     private readonly subscribeToRefresh = subscribeToActiveRefresh,
   ) {}
@@ -29,7 +30,7 @@ export class TaskListController {
     void this.load("initial");
     const refresh = () => void this.load("refresh");
     const stopActive = this.subscribeToRefresh(refresh);
-    const stopInvalidation = taskInvalidationBus.subscribe(refresh);
+    const stopInvalidation = this.invalidationBus.subscribe(refresh);
     return () => {
       stopActive();
       stopInvalidation();
@@ -133,7 +134,7 @@ export class TaskListController {
 
       if (this.store.isUserGenerationCurrent(generation)) {
         this.store.confirmCompletion(task, INBOX_COLLECTION_KEY);
-        taskInvalidationBus.publish();
+        this.invalidationBus.publish();
       }
 
       return task;
@@ -170,5 +171,3 @@ export class TaskListController {
     return { items, nextCursor };
   }
 }
-
-export const taskListController = new TaskListController(tasksStore);

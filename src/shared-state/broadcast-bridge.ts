@@ -58,5 +58,3 @@ export class TaskInvalidationBus {
     this.#channel = null;
   }
 }
-
-export const taskInvalidationBus = new TaskInvalidationBus();

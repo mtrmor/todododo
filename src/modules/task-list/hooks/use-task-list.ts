@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { useWindowDimensions } from "react-native";
-import { taskListController } from "@/modules/task-list/task-list-controller";
+import { useTaskListController } from "@/modules/task-list/task-list-controller-context";
 import { useInboxTasks } from "@/shared-state";
 
 export function useTaskList() {
+  const taskListController = useTaskListController();
   const { width } = useWindowDimensions();
   const { tasks, nextCursor, status, error, offline } = useInboxTasks();
-  useEffect(() => taskListController.connect(), []);
+  useEffect(() => taskListController.connect(), [taskListController]);
   const message =
     error || offline
       ? offline

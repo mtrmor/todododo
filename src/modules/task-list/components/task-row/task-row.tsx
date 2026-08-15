@@ -3,10 +3,12 @@ import { Pressable, Text, View } from "react-native";
 import { colors, type TaskRecord } from "@/platform";
 import { useHovered } from "@/modules/task-list/components/task-row/hooks/use-hovered";
 import { styles } from "@/modules/task-list/components/task-row/styles";
-import { taskListController } from "@/modules/task-list/task-list-controller";
-import { openTask, useTaskMutation } from "@/shared-state";
+import { useTaskListController } from "@/modules/task-list/task-list-controller-context";
+import { useTaskDialogActions, useTaskMutation } from "@/shared-state";
 
 export function ConnectedTaskRow({ task }: { task: TaskRecord }) {
+  const taskListController = useTaskListController();
+  const { openTask } = useTaskDialogActions();
   const mutation = useTaskMutation(task.id);
   return (
     <TaskRow

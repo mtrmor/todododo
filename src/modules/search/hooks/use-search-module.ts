@@ -1,22 +1,23 @@
 import { useEffect, useState } from "react";
 import { useWindowDimensions } from "react-native";
-import { searchController } from "@/modules/search/search-controller";
+import { useSearchController } from "@/modules/search/search-controller-context";
 import { useSearchTasks } from "@/shared-state";
 
 const SEARCH_DEBOUNCE_MS = 250;
 export function useSearchModule() {
+  const searchController = useSearchController();
   const { width } = useWindowDimensions();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const { tasks, nextCursor, status, error, offline } = useSearchTasks(debouncedQuery);
-  useEffect(() => searchController.connect(), []);
+  useEffect(() => searchController.connect(), [searchController]);
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedQuery(query.trim()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timeout);
   }, [query]);
   useEffect(() => {
     searchController.setQuery(debouncedQuery);
-  }, [debouncedQuery]);
+  }, [debouncedQuery, searchController]);
   const message =
     error || offline
       ? offline

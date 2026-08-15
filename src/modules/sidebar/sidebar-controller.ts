@@ -1,7 +1,7 @@
 import { getErrorMessage, isAbortError } from "@/platform/api/api-error";
 import { getTaskSummary } from "@/platform/api/tasks";
 import { subscribeToActiveRefresh } from "@/platform/lifecycle/active-refresh";
-import { taskInvalidationBus, tasksStore, type TasksStore } from "@/shared-state/internal";
+import type { TaskInvalidationBus, TasksStore } from "@/shared-state/internal";
 
 type SidebarApi = Readonly<{ getTaskSummary: typeof getTaskSummary }>;
 
@@ -14,6 +14,7 @@ export class SidebarController {
 
   constructor(
     private readonly store: TasksStore,
+    private readonly invalidationBus: TaskInvalidationBus,
     private readonly api: SidebarApi = { getTaskSummary },
     private readonly subscribeToRefresh = subscribeToActiveRefresh,
   ) {}
@@ -22,7 +23,7 @@ export class SidebarController {
     void this.load("initial");
     const refresh = () => void this.load("refresh");
     const stopActive = this.subscribeToRefresh(refresh);
-    const stopInvalidation = taskInvalidationBus.subscribe(refresh);
+    const stopInvalidation = this.invalidationBus.subscribe(refresh);
     return () => {
       stopActive();
       stopInvalidation();
@@ -77,5 +78,3 @@ export class SidebarController {
     return promise;
   }
 }
-
-export const sidebarController = new SidebarController(tasksStore);

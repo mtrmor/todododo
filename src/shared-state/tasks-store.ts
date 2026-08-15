@@ -639,5 +639,3 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
     this.clearListenersForTests();
   }
 }
-
-export const tasksStore = new TasksStore();

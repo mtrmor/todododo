@@ -2,9 +2,9 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 
 import { getErrorMessage, useAuth } from "@/platform";
-import { sidebarController } from "@/modules/sidebar/sidebar-controller";
+import { useSidebarController } from "@/modules/sidebar/sidebar-controller-context";
 import type { SidebarRoute } from "@/modules/sidebar/sidebar-module";
-import { closeTask, useTaskSummary } from "@/shared-state";
+import { useTaskDialogActions, useTaskSummary } from "@/shared-state";
 
 const ROUTES: Record<SidebarRoute, string> = {
   inbox: "/inbox",
@@ -23,13 +23,15 @@ export function useSidebar({
   onNavigate?: (route: SidebarRoute) => void;
   onClose?: () => void;
 }) {
+  const sidebarController = useSidebarController();
+  const { closeTask } = useTaskDialogActions();
   const router = useRouter();
   const { user, signOut: performSignOut } = useAuth();
   const { data: summary, error: summaryError } = useTaskSummary();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
-  useEffect(() => sidebarController.connect(), []);
+  useEffect(() => sidebarController.connect(), [sidebarController]);
 
   function navigate(route: SidebarRoute) {
     if (onNavigate) {

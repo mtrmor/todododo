@@ -7,11 +7,14 @@ import {
   searchCollectionKey,
   useInboxTasks,
   useTask,
+  useTaskDialogActions,
+  useUiStore,
   type TaskCollectionView,
   type TaskRecord,
 } from "@/shared-state";
 import { ExternalStore } from "@/shared-state/external-store";
-import { tasksStore, TasksStore, UiStore } from "@/shared-state/internal";
+import { TasksStore, UiStore } from "@/shared-state/internal";
+import { SharedStateProvider } from "@/shared-state/store-context";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -212,11 +215,18 @@ describe("TasksStore", () => {
 
 describe("Shared State selectors", () => {
   let renderer: ReactTestRenderer | null = null;
+  let tasksStore: TasksStore;
+  let uiStore: UiStore;
 
   beforeEach(() => {
-    tasksStore.resetForTests();
+    tasksStore = new TasksStore();
+    uiStore = new UiStore();
     renderer = null;
   });
+
+  function renderWithState(child: ReturnType<typeof createElement>) {
+    return create(createElement(SharedStateProvider, { tasksStore, uiStore }, child));
+  }
 
   it("does not rerender an Inbox subscriber for unrelated entity or summary changes", () => {
     let renders = 0;
@@ -229,7 +239,7 @@ describe("Shared State selectors", () => {
     }
 
     act(() => {
-      renderer = create(createElement(Probe));
+      renderer = renderWithState(createElement(Probe));
     });
     const initialView = selections[0];
     expect(renders).toBe(1);
@@ -257,7 +267,7 @@ describe("Shared State selectors", () => {
     }
 
     act(() => {
-      renderer = create(createElement(Probe));
+      renderer = renderWithState(createElement(Probe));
     });
     act(() => tasksStore.upsertTask(task("other")));
     expect(renders).toBe(1);
@@ -267,6 +277,26 @@ describe("Shared State selectors", () => {
     });
     expect(renders).toBe(2);
     expect(selections.at(-1)?.title).toBe("Changed");
+    act(() => renderer?.unmount());
+  });
+
+  it("routes dialog actions to the UiStore supplied by the provider", () => {
+    let actions: ReturnType<typeof useTaskDialogActions> | null = null;
+    let selectedStore: UiStore | null = null;
+
+    function Probe() {
+      actions = useTaskDialogActions();
+      selectedStore = useUiStore();
+      return null;
+    }
+
+    act(() => {
+      renderer = renderWithState(createElement(Probe));
+    });
+    act(() => actions?.openTask("task-1"));
+
+    expect(selectedStore).toBe(uiStore);
+    expect(uiStore.getSnapshot().taskDialog).toEqual({ mode: "edit", taskId: "task-1" });
     act(() => renderer?.unmount());
   });
 });

@@ -1,11 +1,13 @@
 import { CalendarBlank, Check, CircleIcon } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
 import { colors, type TaskRecord } from "@/platform";
-import { searchController } from "@/modules/search/search-controller";
+import { useSearchController } from "@/modules/search/search-controller-context";
 import { useHovered } from "@/modules/search/components/search-task-row/hooks/use-hovered";
 import { styles } from "@/modules/search/components/search-task-row/styles";
-import { openTask, useTaskMutation } from "@/shared-state";
+import { useTaskDialogActions, useTaskMutation } from "@/shared-state";
 export function ConnectedSearchTaskRow({ task }: { task: TaskRecord }) {
+  const searchController = useSearchController();
+  const { openTask } = useTaskDialogActions();
   const mutation = useTaskMutation(task.id);
   return (
     <SearchTaskRow

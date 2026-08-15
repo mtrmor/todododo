@@ -1,5 +1,5 @@
 import { AuthProvider, fontAssets } from "@/platform";
-import { TasksDataProvider } from "@/root";
+import { AppServicesProvider, TasksDataProvider } from "@/root";
 import { Stack } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
@@ -14,14 +14,16 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <TasksDataProvider>
-        <Head>
-          <title>TodoDodo</title>
-          <meta content="A quiet route through the work ahead." name="description" />
-        </Head>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false }} />
-      </TasksDataProvider>
+      <AppServicesProvider>
+        <TasksDataProvider>
+          <Head>
+            <title>TodoDodo</title>
+            <meta content="A quiet route through the work ahead." name="description" />
+          </Head>
+          <StatusBar style="dark" />
+          <Stack screenOptions={{ headerShown: false }} />
+        </TasksDataProvider>
+      </AppServicesProvider>
     </AuthProvider>
   );
 }

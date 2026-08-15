@@ -2,8 +2,8 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { TextInput, useWindowDimensions } from "react-native";
 
 import { getErrorMessage, type TaskDraft } from "@/platform";
-import { taskDetailController } from "@/modules/task-detail/task-detail-controller";
-import { closeTask, useTask, useTaskDialog } from "@/shared-state";
+import { useTaskDetailController } from "@/modules/task-detail/task-detail-controller-context";
+import { useTask, useTaskDialog, useTaskDialogActions } from "@/shared-state";
 
 export type FormValues = { title: string; notes: string; dueDate: string };
 export type FieldErrors = Partial<Record<keyof FormValues, string>>;
@@ -11,6 +11,8 @@ export type ConfirmationKind = "discard" | "delete" | null;
 const EMPTY_FORM: FormValues = { title: "", notes: "", dueDate: "" };
 
 export function useTaskDetailForm() {
+  const taskDetailController = useTaskDetailController();
+  const { closeTask } = useTaskDialogActions();
   const { width, height } = useWindowDimensions();
   const taskDialog = useTaskDialog();
   const titleRef = useRef<TextInput>(null);
@@ -170,7 +172,7 @@ export function useTaskDetailForm() {
       requestIdRef.current += 1;
       taskDetailController.cancelLoad();
     };
-  }, [taskDialog]);
+  }, [taskDetailController, taskDialog]);
 
   function showConfirmation(kind: Exclude<ConfirmationKind, null>) {
     if (typeof document !== "undefined") {

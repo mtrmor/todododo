@@ -53,5 +53,3 @@ export class UiStore extends ExternalStore<UiSnapshot> {
     this.clearListenersForTests();
   }
 }
-
-export const uiStore = new UiStore();

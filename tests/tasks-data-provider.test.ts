@@ -2,6 +2,9 @@ import { createElement } from "react";
 import { act, create } from "react-test-renderer";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TasksStore, UiStore } from "@/shared-state/internal";
+import { SharedStateProvider } from "@/shared-state/store-context";
+
 const mocks = vi.hoisted(() => {
   const auth = {
     status: "authenticated" as "authenticated" | "anonymous",
@@ -9,17 +12,10 @@ const mocks = vi.hoisted(() => {
   };
   return {
     auth,
-    store: {
-      bindUser: vi.fn(),
-      releaseUser: vi.fn(),
-    },
   };
 });
 
 vi.mock("@/platform/auth/auth-provider", () => ({ useAuth: () => mocks.auth }));
-vi.mock("@/shared-state/internal", () => ({
-  tasksStore: mocks.store,
-}));
 
 // Vitest hoists the mocks above this static import at transform time.
 // eslint-disable-next-line import/first
@@ -28,29 +24,46 @@ import { TasksDataProvider } from "@/root/providers/tasks-data-provider";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 describe("TasksDataProvider", () => {
+  let tasksStore: TasksStore;
+  let uiStore: UiStore;
+  let bindUser: ReturnType<typeof vi.spyOn>;
+  let releaseUser: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     mocks.auth.status = "authenticated";
     mocks.auth.user = { id: "user-a", email: "a@example.com" };
+    tasksStore = new TasksStore();
+    uiStore = new UiStore();
+    bindUser = vi.spyOn(tasksStore, "bindUser");
+    releaseUser = vi.spyOn(tasksStore, "releaseUser");
     vi.clearAllMocks();
   });
+
+  function renderTree(children?: ReturnType<typeof createElement>) {
+    return createElement(
+      SharedStateProvider,
+      { tasksStore, uiStore },
+      createElement(TasksDataProvider, null, children),
+    );
+  }
 
   it("binds and releases the authenticated user without loading data", async () => {
     let renderer: ReturnType<typeof create>;
     await act(async () => {
-      renderer = create(createElement(TasksDataProvider, null, null));
+      renderer = create(renderTree());
       await Promise.resolve();
     });
 
-    expect(mocks.store.bindUser).toHaveBeenCalledWith("user-a");
+    expect(bindUser).toHaveBeenCalledWith("user-a");
 
     mocks.auth.status = "anonymous";
     mocks.auth.user = null;
     await act(async () => {
-      renderer.update(createElement(TasksDataProvider, null, null));
+      renderer.update(renderTree());
       await Promise.resolve();
     });
-    expect(mocks.store.releaseUser).toHaveBeenCalledWith("user-a");
-    expect(mocks.store.bindUser).toHaveBeenLastCalledWith(null);
+    expect(releaseUser).toHaveBeenCalledWith("user-a");
+    expect(bindUser).toHaveBeenLastCalledWith(null);
 
     act(() => renderer.unmount());
   });
@@ -62,7 +75,7 @@ describe("TasksDataProvider", () => {
     mocks.auth.status = "anonymous";
     mocks.auth.user = null;
     await act(async () => {
-      renderer = create(createElement(TasksDataProvider, null, createElement(child)));
+      renderer = create(renderTree(createElement(child)));
       await Promise.resolve();
     });
     expect(child).toHaveBeenCalledTimes(1);
@@ -71,13 +84,13 @@ describe("TasksDataProvider", () => {
     mocks.auth.status = "authenticated";
     mocks.auth.user = { id: "user-b", email: "b@example.com" };
     await act(async () => {
-      renderer.update(createElement(TasksDataProvider, null, createElement(child)));
+      renderer.update(renderTree(createElement(child)));
       await Promise.resolve();
     });
 
-    expect(mocks.store.bindUser).toHaveBeenLastCalledWith("user-b");
+    expect(bindUser).toHaveBeenLastCalledWith("user-b");
     expect(child).toHaveBeenCalledTimes(1);
-    expect(mocks.store.bindUser.mock.invocationCallOrder.at(-1)).toBeLessThan(
+    expect(bindUser.mock.invocationCallOrder.at(-1)).toBeLessThan(
       child.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
     );
     act(() => renderer.unmount());
