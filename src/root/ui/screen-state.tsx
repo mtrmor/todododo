@@ -1,7 +1,7 @@
 import { ActivityIndicator, View } from "react-native";
 
 import { AppText } from "@/root/ui/app-text";
-import { colors, spacing } from "@/core/theme";
+import { colors, spacing } from "@/platform/theme";
 
 type ScreenStateProps = Readonly<{ title?: string; message?: string; loading?: boolean }>;
 

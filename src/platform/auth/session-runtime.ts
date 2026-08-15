@@ -1,5 +1,5 @@
-import { ApiError } from "@/core/api/api-error";
-import type { SafeUser } from "@/core/types";
+import { ApiError } from "@/platform/api/api-error";
+import type { SafeUser } from "@/platform/types";
 
 type SessionRefreshHandler = () => Promise<SafeUser | null>;
 

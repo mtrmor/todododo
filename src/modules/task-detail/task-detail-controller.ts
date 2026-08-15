@@ -3,7 +3,7 @@ import {
   deleteTask,
   getTask,
   updateTask,
-} from "@/core/api/tasks";
+} from "@/platform/api/tasks";
 import type { TaskDraft, TaskRecord, TaskSummary } from "@/domain/tasks";
 import { INBOX_COLLECTION_KEY } from "@/shared-state";
 import { taskInvalidationBus, tasksStore, type TasksStore } from "@/shared-state/internal";

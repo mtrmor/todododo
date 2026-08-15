@@ -1,8 +1,8 @@
 import { createClient, processLock, type SupabaseClient } from "@supabase/supabase-js";
 import { AppState } from "react-native";
 
-import { ApiError } from "@/core/api/api-error";
-import { secureStoreAdapter } from "@/core/auth/secure-store-adapter.native";
+import { ApiError } from "@/platform/api/api-error";
+import { secureStoreAdapter } from "@/platform/auth/secure-store-adapter.native";
 
 let nativeClient: SupabaseClient | null = null;
 let appStateListenerInstalled = false;

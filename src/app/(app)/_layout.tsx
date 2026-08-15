@@ -1,4 +1,4 @@
-import { colors, fonts, useAuth } from "@/core";
+import { colors, fonts, useAuth } from "@/platform";
 import {
   SidebarModule,
   type SidebarRoute,

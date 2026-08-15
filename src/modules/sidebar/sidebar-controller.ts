@@ -1,6 +1,6 @@
-import { getErrorMessage, isAbortError } from "@/core/api/api-error";
-import { getTaskSummary } from "@/core/api/tasks";
-import { subscribeToActiveRefresh } from "@/root/lifecycle/active-refresh";
+import { getErrorMessage, isAbortError } from "@/platform/api/api-error";
+import { getTaskSummary } from "@/platform/api/tasks";
+import { subscribeToActiveRefresh } from "@/platform/lifecycle/active-refresh";
 import { taskInvalidationBus, tasksStore, type TasksStore } from "@/shared-state/internal";
 
 type SidebarApi = Readonly<{ getTaskSummary: typeof getTaskSummary }>;

@@ -1,4 +1,4 @@
-import { useAuth } from "@/core";
+import { useAuth } from "@/platform";
 import { Redirect } from "expo-router";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 

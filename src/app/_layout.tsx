@@ -1,4 +1,4 @@
-import { AuthProvider, fontAssets } from "@/core";
+import { AuthProvider, fontAssets } from "@/platform";
 import { TasksDataProvider } from "@/root";
 import { Stack } from "expo-router";
 import Head from "expo-router/head";

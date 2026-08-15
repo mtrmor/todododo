@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("@/core/auth/auth-provider", () => ({ useAuth: () => mocks.auth }));
+vi.mock("@/platform/auth/auth-provider", () => ({ useAuth: () => mocks.auth }));
 vi.mock("@/shared-state/internal", () => ({
   tasksStore: mocks.store,
 }));

@@ -1,5 +1,5 @@
-import { ApiError } from "@/core/api/api-error";
-import { requestJson } from "@/core/api/request";
+import { ApiError } from "@/platform/api/api-error";
+import { requestJson } from "@/platform/api/request";
 import type {
   GetTasksOptions,
   RequestOptions,
@@ -7,7 +7,7 @@ import type {
   TaskPage,
   TaskRecord,
   TaskSummary,
-} from "@/core/types";
+} from "@/platform/types";
 
 function taskPath(taskId: string): string {
   if (!taskId.trim()) {

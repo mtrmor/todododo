@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
 
-import { colors, layout, radii } from "@/core/theme";
+import { colors, layout, radii } from "@/platform/theme";
 
 export type IconButtonProps = Omit<PressableProps, "children"> & { label: string; children: ReactNode };
 

@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { requestJson } from "@/core/api/request";
+import { requestJson } from "@/platform/api/request";
 import {
   ensureCsrfTokenForCookieMutation,
   refreshSessionSerialized,
   registerSessionRefresh,
   setCsrfToken,
-} from "@/core/auth/session-runtime";
+} from "@/platform/auth/session-runtime";
 
 const originalFetch = globalThis.fetch;
 

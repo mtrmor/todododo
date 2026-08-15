@@ -1,5 +1,5 @@
-import { getNativeAccessToken } from "@/core/auth/native-supabase.native";
-import type { PlatformRequestContext } from "@/core/api/platform-transport";
+import { getNativeAccessToken } from "@/platform/auth/native-supabase.native";
+import type { PlatformRequestContext } from "@/platform/api/platform-transport";
 
 export async function getPlatformRequestContext(): Promise<PlatformRequestContext> {
   const accessToken = await getNativeAccessToken();

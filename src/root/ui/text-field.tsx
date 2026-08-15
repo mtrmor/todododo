@@ -2,7 +2,7 @@ import { useId } from "react";
 import { TextInput, View, type TextInputProps } from "react-native";
 
 import { AppText } from "@/root/ui/app-text";
-import { colors, fonts, layout, radii, spacing } from "@/core/theme";
+import { colors, fonts, layout, radii, spacing } from "@/platform/theme";
 
 type TextFieldProps = TextInputProps & { label?: string; error?: string | null };
 

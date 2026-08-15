@@ -8,14 +8,14 @@ import {
   type PropsWithChildren,
 } from "react";
 
-import { authAdapter } from "@/core/auth/auth-adapter";
+import { authAdapter } from "@/platform/auth/auth-adapter";
 import {
   ensureCsrfTokenForCookieMutation,
   registerSessionRefresh,
   refreshSessionSerialized,
   setCsrfToken,
-} from "@/core/auth/session-runtime";
-import type { SafeUser } from "@/core/types";
+} from "@/platform/auth/session-runtime";
+import type { SafeUser } from "@/platform/types";
 
 export type AuthStatus = "loading" | "authenticated" | "anonymous";
 

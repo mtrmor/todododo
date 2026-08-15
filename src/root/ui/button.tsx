@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable, type PressableProps } from "react-native";
 
 import { AppText } from "@/root/ui/app-text";
-import { colors, layout, radii, spacing } from "@/core/theme";
+import { colors, layout, radii, spacing } from "@/platform/theme";
 
 type ButtonProps = Omit<PressableProps, "children"> & {
   children: ReactNode;

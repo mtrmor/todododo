@@ -32,7 +32,7 @@ import {
   getErrorMessage,
   shadows,
   useAuth,
-} from "@/core";
+} from "@/platform";
 import {
   closeTask,
   openCreateTask,

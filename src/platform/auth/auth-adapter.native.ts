@@ -1,6 +1,6 @@
-import { ApiError } from "@/core/api/api-error";
-import type { SessionEnvelope } from "@/core/auth/auth-adapter";
-import { getNativeSupabaseClient } from "@/core/auth/native-supabase.native";
+import { ApiError } from "@/platform/api/api-error";
+import type { SessionEnvelope } from "@/platform/auth/auth-adapter";
+import { getNativeSupabaseClient } from "@/platform/auth/native-supabase.native";
 
 function toSessionEnvelope(
   user: { id: string; email?: string } | null,

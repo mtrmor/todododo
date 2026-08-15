@@ -2,7 +2,7 @@ import { ArrowLeft, ClockCountdown } from "phosphor-react-native";
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
-import { colors, fonts, shadows } from "@/core";
+import { colors, fonts, shadows } from "@/platform";
 
 export type PlaceholderScreenProps = {
   title: string;

@@ -1,9 +1,9 @@
-import { ApiError, isAbortError } from "@/core/api/api-error";
-import { getPlatformRequestContext } from "@/core/api/platform-transport";
+import { ApiError, isAbortError } from "@/platform/api/api-error";
+import { getPlatformRequestContext } from "@/platform/api/platform-transport";
 import {
   getCsrfToken,
   refreshSessionAfterUnauthorized,
-} from "@/core/auth/session-runtime";
+} from "@/platform/auth/session-runtime";
 
 type JsonRequestOptions = Readonly<{
   method?: "GET" | "POST" | "PATCH" | "DELETE";

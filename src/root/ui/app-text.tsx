@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import { Text } from "react-native";
 
-import { colors, fonts } from "@/core/theme";
+import { colors, fonts } from "@/platform/theme";
 
 export type AppTextProps = ComponentProps<typeof Text> & {
   variant?: "body" | "bodyMedium" | "bodySemibold" | "heading" | "caption";

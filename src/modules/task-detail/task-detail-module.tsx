@@ -26,7 +26,7 @@ import {
   getErrorMessage,
   shadows,
   type TaskDraft,
-} from "@/core";
+} from "@/platform";
 import {
   closeTask,
   useTask,

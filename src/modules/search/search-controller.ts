@@ -1,7 +1,7 @@
-import { getErrorMessage, isAbortError } from "@/core/api/api-error";
-import { getTasks, setTaskCompleted } from "@/core/api/tasks";
+import { getErrorMessage, isAbortError } from "@/platform/api/api-error";
+import { getTasks, setTaskCompleted } from "@/platform/api/tasks";
 import type { TaskPage, TaskRecord } from "@/domain/tasks";
-import { subscribeToActiveRefresh } from "@/root/lifecycle/active-refresh";
+import { subscribeToActiveRefresh } from "@/platform/lifecycle/active-refresh";
 import { normalizeSearchQuery, searchCollectionKey } from "@/shared-state";
 import { taskInvalidationBus, tasksStore, type TasksStore } from "@/shared-state/internal";
 

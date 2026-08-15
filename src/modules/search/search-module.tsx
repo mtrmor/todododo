@@ -25,7 +25,7 @@ import {
   fonts,
   shadows,
   type TaskRecord,
-} from "@/core";
+} from "@/platform";
 import {
   openCreateTask,
   openTask,

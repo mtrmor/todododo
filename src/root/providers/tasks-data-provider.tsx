@@ -1,6 +1,6 @@
 import { useEffect, useState, type PropsWithChildren } from "react";
 
-import { useAuth } from "@/core/auth/auth-provider";
+import { useAuth } from "@/platform/auth/auth-provider";
 import { tasksStore } from "@/shared-state/internal";
 
 /** Scopes the in-memory task cache to the authenticated user before mounting modules. */

@@ -14,12 +14,42 @@ lives in Supabase and in the memory of the active tab.
 
 ## Architecture
 
+Dependency depth is fixed by this pyramid. Higher layers may depend on the
+allowed lower layers; `app` may additionally import `root`.
+
+```text
+                         app
+                          │
+                         root
+                          │
+                       modules
+                 ┌────────┴────────┐
+              platform       shared-state
+                 └────────┬────────┘
+                         domain
+
+             app/api ─ ─ ▶ server ──▶ domain
+```
+
+The complete direct-import matrix is:
+
+- `app` → `root`, `modules`, `platform`, `shared-state`
+- `root` → `modules`, `platform`, `shared-state`
+- `modules` → `platform`, `shared-state`, `domain`
+- `platform` → `domain`
+- `shared-state` → `domain`
+- `server` → `domain`
+- `domain` → no other application layer
+- exception: `app/api` → `server`
+
 - `src/app/` contains Expo Router routes, providers, and module composition.
 - `src/modules/` contains independent visible UI modules. A module may import
-  Core, Shared State, and packages, but never another module.
-- `src/core/` owns types, API transports, auth, theme, and task operations.
+  Platform, Shared State, Domain, and packages, but never another module.
+- `src/platform/` owns API transports, auth, lifecycle, theme, and shared types.
+  It depends only on Domain and external packages.
+- `src/root/` composes Platform with Shared State and owns shared root UI.
 - `src/shared-state/` is a synchronous `useSyncExternalStore` UI bus. It has no
-  network, Supabase, or database imports.
+  Platform, network, Supabase, or database imports.
 - `src/server/` contains the allowlisted same-origin API proxy.
 - `supabase/functions/todododo-api/` owns auth, CSRF, validation, and task CRUD.
 - `supabase/migrations/` and `supabase/tests/database/` own the Postgres contract.

@@ -1,5 +1,5 @@
-import { requestJson } from "@/core/api/request";
-import type { SafeUser } from "@/core/types";
+import { requestJson } from "@/platform/api/request";
+import type { SafeUser } from "@/platform/types";
 
 export type SessionEnvelope = Readonly<{
   user: SafeUser | null;

@@ -80,8 +80,42 @@ function area(filePath: string): { kind: string; name?: string } {
   return { kind: segments[0] ?? "", name: segments[0] === "modules" ? segments[1] : undefined };
 }
 
+const applicationLayers = new Set([
+  "app",
+  "domain",
+  "modules",
+  "platform",
+  "root",
+  "server",
+  "shared-state",
+]);
+
+const allowedDependencies: Readonly<Record<string, ReadonlySet<string>>> = {
+  app: new Set(["modules", "platform", "root", "shared-state"]),
+  domain: new Set(),
+  modules: new Set(["domain", "platform", "shared-state"]),
+  platform: new Set(["domain"]),
+  root: new Set(["modules", "platform", "shared-state"]),
+  server: new Set(["domain"]),
+  "shared-state": new Set(["domain"]),
+};
+
+function canImport(
+  sourceArea: { kind: string; name?: string },
+  targetArea: { kind: string; name?: string },
+  filePath: string,
+): boolean {
+  if (sourceArea.kind === targetArea.kind) {
+    return sourceArea.kind !== "modules" || sourceArea.name === targetArea.name;
+  }
+  if (sourceArea.kind === "app" && targetArea.kind === "server") {
+    return path.relative(sourceRoot, filePath).split(path.sep)[1] === "api";
+  }
+  return allowedDependencies[sourceArea.kind]?.has(targetArea.kind) ?? false;
+}
+
 describe("architecture boundaries", () => {
-  it("keeps visible modules independent and shared layers UI-only", () => {
+  it("enforces the application dependency graph", () => {
     const violations: string[] = [];
 
     for (const filePath of sourceFiles(sourceRoot)) {
@@ -94,29 +128,21 @@ describe("architecture boundaries", () => {
         const resolved = resolveProjectImport(filePath, specifier);
         const targetArea = resolved ? area(resolved) : null;
 
-        if (sourceArea.kind === "modules" && targetArea?.kind === "modules" && sourceArea.name !== targetArea.name) {
-          violations.push(`${path.relative(projectRoot, filePath)} imports module ${targetArea.name} via ${specifier}`);
+        if (specifier.startsWith("..")) {
+          violations.push(`${path.relative(projectRoot, filePath)} uses parent-relative import ${specifier}`);
         }
-        if ((sourceArea.kind === "core" || sourceArea.kind === "shared-state") && targetArea?.kind === "modules") {
-          violations.push(`${path.relative(projectRoot, filePath)} imports a UI module via ${specifier}`);
-        }
-        if ((sourceArea.kind === "core" || sourceArea.kind === "shared-state") && targetArea?.kind === "root") {
-          violations.push(`${path.relative(projectRoot, filePath)} imports the Root layer via ${specifier}`);
-        }
-        if (sourceArea.kind === "root" && targetArea?.kind === "modules") {
-          violations.push(`${path.relative(projectRoot, filePath)} imports a visible UI module via ${specifier}`);
-        }
-        if (sourceArea.kind === "shared-state" && (targetArea?.kind === "core" || /(?:supabase|powersync|sqlite|watermelondb)/i.test(specifier))) {
-          violations.push(`${path.relative(projectRoot, filePath)} imports a data layer via ${specifier}`);
-        }
-        if (sourceArea.kind === "core" && targetArea?.kind === "shared-state") {
-          violations.push(`${path.relative(projectRoot, filePath)} imports Shared State via ${specifier}`);
+        if (
+          targetArea &&
+          applicationLayers.has(sourceArea.kind) &&
+          applicationLayers.has(targetArea.kind) &&
+          !canImport(sourceArea, targetArea, filePath)
+        ) {
+          violations.push(
+            `${path.relative(projectRoot, filePath)} imports forbidden layer ${targetArea.kind} via ${specifier}`,
+          );
         }
         if (sourceArea.kind === "modules" && !isModuleController && /@\/shared-state\/(?:internal|external-store|tasks-store|ui-store|broadcast-bridge)(?:\/|$)/.test(specifier)) {
           violations.push(`${path.relative(projectRoot, filePath)} imports internal Shared State via ${specifier}`);
-        }
-        if (sourceArea.kind === "domain" && targetArea && targetArea.kind !== "domain") {
-          violations.push(`${path.relative(projectRoot, filePath)} imports ${targetArea.kind} via ${specifier}`);
         }
       }
 
@@ -129,7 +155,7 @@ describe("architecture boundaries", () => {
       }
     }
 
-    expect(fs.existsSync(path.join(sourceRoot, "core", "tasks", "tasks-controller.ts"))).toBe(false);
+    expect(fs.existsSync(path.join(sourceRoot, "core"))).toBe(false);
 
     expect(violations).toEqual([]);
   });

@@ -18,7 +18,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 
-import { colors, fonts, getErrorMessage, useAuth } from "@/core";
+import { colors, fonts, getErrorMessage, useAuth } from "@/platform";
 
 export type AuthScreenProps = {
   variant: "sign-in" | "sign-up";

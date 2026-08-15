@@ -14,7 +14,7 @@ import { TaskListController } from "@/modules/task-list/task-list-controller";
 import { INBOX_COLLECTION_KEY, searchCollectionKey } from "@/shared-state";
 import { taskInvalidationBus, TasksStore } from "@/shared-state/internal";
 
-vi.mock("@/root/lifecycle/active-refresh", () => ({
+vi.mock("@/platform/lifecycle/active-refresh", () => ({
   subscribeToActiveRefresh: () => () => undefined,
 }));
 
