@@ -4,6 +4,7 @@ export const styles = StyleSheet.create({
   overlay: {
     position: "absolute",
     inset: 0,
+    zIndex: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: 20,

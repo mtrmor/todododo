@@ -54,15 +54,15 @@ export function TaskDetailModule() {
             ) : (
               <TaskForm {...form} />
             )}
-            {form.confirmation ? (
-              <ConfirmationLayer
-                busy={form.deleting}
-                kind={form.confirmation}
-                onCancel={form.dismissConfirmation}
-                onConfirm={form.confirm}
-              />
-            ) : null}
           </View>
+          {form.confirmation ? (
+            <ConfirmationLayer
+              busy={form.deleting}
+              kind={form.confirmation}
+              onCancel={form.dismissConfirmation}
+              onConfirm={form.confirm}
+            />
+          ) : null}
         </View>
       </KeyboardAvoidingView>
     </Modal>
