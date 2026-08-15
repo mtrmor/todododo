@@ -5,6 +5,7 @@ import { TaskDetailModule } from "@/modules/task-detail";
 import { List, PathIcon } from "phosphor-react-native";
 import { type Href, Redirect, Slot, usePathname, useRouter } from "expo-router";
 import { useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ActivityIndicator,
   Modal,
@@ -101,8 +102,10 @@ export default function AppLayout() {
 }
 
 function MobileHeader({ onOpen }: { onOpen: () => void }) {
+  const { top } = useSafeAreaInsets();
+
   return (
-    <View style={styles.mobileHeader}>
+    <View style={[styles.mobileHeader, { height: 64 + top, paddingTop: top }]}>
       <IconButton icon={List} label="Open navigation" onPress={onOpen} />
       <View style={styles.mobileBrand}>
         <View style={styles.mobileMark}>
@@ -167,7 +170,6 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.softLine,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
-    height: 64,
     justifyContent: "space-between",
     paddingHorizontal: 12,
   },
