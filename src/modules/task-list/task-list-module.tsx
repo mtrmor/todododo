@@ -8,16 +8,9 @@ import {
   WarningCircle,
   WifiSlash,
 } from "phosphor-react-native";
-import {
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  AppState,
   FlatList,
   Pressable,
   Text,
@@ -28,254 +21,32 @@ import {
 import {
   colors,
   fonts,
-  getErrorMessage,
-  getTasks,
-  setTaskCompleted,
   shadows,
   type TaskRecord,
 } from "@/core";
 import {
-  getServerSnapshot,
-  getSnapshot,
-  markTasksChanged,
   openCreateTask,
   openTask,
-  subscribe,
+  useInboxTasks,
+  useTaskMutation,
 } from "@/shared-state";
-import {
-  appendTaskPage,
-  reconcileTaskWindow,
-  replaceTaskRecord,
-} from "@/modules/task-list/task-window-state";
+import { taskListController } from "@/modules/task-list/task-list-controller";
 
 export type TaskListModuleProps = {
   title?: string;
 };
 
-const ACTIVE_POLL_INTERVAL_MS = 30_000;
-const PAGE_SIZE = 50;
-
-async function getLoadedTaskWindow(targetCount: number, signal: AbortSignal) {
-  const items: TaskRecord[] = [];
-  const seenCursors = new Set<string>();
-  let cursor: string | null = null;
-  let nextCursor: string | null = null;
-
-  do {
-    const page = await getTasks({ cursor, limit: PAGE_SIZE, signal });
-    items.push(...page.items);
-    nextCursor = page.nextCursor;
-
-    if (!nextCursor || items.length >= targetCount || seenCursors.has(nextCursor)) {
-      break;
-    }
-
-    seenCursors.add(nextCursor);
-    cursor = nextCursor;
-  } while (items.length < targetCount);
-
-  return { items, nextCursor };
-}
-
 export function TaskListModule({ title = "Inbox" }: TaskListModuleProps) {
   const { width } = useWindowDimensions();
-  const { tasksRevision } = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
-  );
-  const [tasks, setTasks] = useState<TaskRecord[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [offline, setOffline] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
-  const controllerRef = useRef<AbortController | null>(null);
-  const requestIdRef = useRef(0);
-  const loadedCountRef = useRef(0);
-  const pendingIdsRef = useRef<ReadonlySet<string>>(new Set());
-  const ignoredRevisionRef = useRef<number | null>(null);
+  const { tasks, nextCursor, status, error, offline } = useInboxTasks();
   const isCompact = width < 680;
-
-  useEffect(() => {
-    loadedCountRef.current = tasks.length;
-  }, [tasks.length]);
-
-  async function fetchTaskWindow(
-    mode: "initial" | "refresh",
-  ) {
-    const requestId = ++requestIdRef.current;
-    controllerRef.current?.abort();
-    const controller = new AbortController();
-    controllerRef.current = controller;
-
-    const effectiveMode = loadedCountRef.current === 0 ? "initial" : mode;
-    setLoading(effectiveMode === "initial");
-    setRefreshing(effectiveMode === "refresh");
-    setLoadingMore(false);
-
-    try {
-      const page = await getLoadedTaskWindow(
-        Math.max(PAGE_SIZE, loadedCountRef.current),
-        controller.signal,
-      );
-      if (requestId !== requestIdRef.current) return;
-      setTasks((current) =>
-        reconcileTaskWindow(page.items, current, pendingIdsRef.current),
-      );
-      setNextCursor(page.nextCursor);
-      setError(null);
-      setOffline(false);
-    } catch (caughtError) {
-      if (controller.signal.aborted) return;
-      const message = getErrorMessage(caughtError, "Tasks could not be loaded.");
-      setError(message);
-      setOffline(typeof navigator !== "undefined" && !navigator.onLine);
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  }
-
-  const fetchTaskWindowEffect = useEffectEvent(fetchTaskWindow);
-
-  useEffect(() => {
-    if (ignoredRevisionRef.current === tasksRevision) {
-      ignoredRevisionRef.current = null;
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      void fetchTaskWindowEffect(
-        loadedCountRef.current === 0 ? "initial" : "refresh",
-      );
-    }, 0);
-    return () => {
-      clearTimeout(timeout);
-    };
-  }, [tasksRevision]);
-
-  useEffect(
-    () => () => {
-      requestIdRef.current += 1;
-      controllerRef.current?.abort();
-    },
-    [],
-  );
-
-  useEffect(() => {
-    if (
-      process.env.EXPO_OS !== "web" ||
-      typeof window === "undefined" ||
-      typeof document === "undefined"
-    ) {
-      return;
-    }
-
-    const refreshIfVisible = () => {
-      if (document.visibilityState === "visible") {
-        void fetchTaskWindowEffect("refresh");
-      }
-    };
-    const handleOnline = () => {
-      setOffline(false);
-      void fetchTaskWindowEffect("refresh");
-    };
-    const handleOffline = () => setOffline(true);
-    const interval = window.setInterval(refreshIfVisible, ACTIVE_POLL_INTERVAL_MS);
-
-    window.addEventListener("focus", refreshIfVisible);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    document.addEventListener("visibilitychange", refreshIfVisible);
-
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refreshIfVisible);
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-      document.removeEventListener("visibilitychange", refreshIfVisible);
-    };
-  }, []);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") void fetchTaskWindowEffect("refresh");
-    });
-    return () => subscription.remove();
-  }, []);
-
-  async function loadMore() {
-    if (!nextCursor || loadingMore) return;
-    const requestId = ++requestIdRef.current;
-    controllerRef.current?.abort();
-    const controller = new AbortController();
-    controllerRef.current = controller;
-
-    setLoading(false);
-    setRefreshing(false);
-    setLoadingMore(true);
-    try {
-      const page = await getTasks({
-        cursor: nextCursor,
-        limit: PAGE_SIZE,
-        signal: controller.signal,
-      });
-      if (requestId !== requestIdRef.current) return;
-      setTasks((current) => appendTaskPage(current, page.items, pendingIdsRef.current));
-      setNextCursor(page.nextCursor);
-      setError(null);
-      setOffline(false);
-    } catch (caughtError) {
-      if (controller.signal.aborted) return;
-      setError(getErrorMessage(caughtError, "More tasks could not be loaded."));
-      setOffline(typeof navigator !== "undefined" && !navigator.onLine);
-    } finally {
-      if (requestId === requestIdRef.current) setLoadingMore(false);
-    }
-  }
-
-  async function toggleTask(task: TaskRecord) {
-    if (pendingIdsRef.current.has(task.id)) return;
-    const nextCompleted = !task.completed;
-
-    const nextPending = new Set(pendingIdsRef.current).add(task.id);
-    pendingIdsRef.current = nextPending;
-    setPendingIds(nextPending);
-    setTasks((current) =>
-      current.map((item) =>
-        item.id === task.id ? { ...item, completed: nextCompleted } : item,
-      ),
-    );
-
-    try {
-      const savedTask = await setTaskCompleted(task.id, nextCompleted);
-      setTasks((current) => replaceTaskRecord(current, savedTask));
-      setError(null);
-      setOffline(false);
-      markTasksChanged();
-      ignoredRevisionRef.current = getSnapshot().tasksRevision;
-    } catch (caughtError) {
-      setTasks((current) =>
-        current.map((item) =>
-          item.id === task.id ? { ...item, completed: task.completed } : item,
-        ),
-      );
-      setError(getErrorMessage(caughtError, "The task was not changed."));
-      setOffline(typeof navigator !== "undefined" && !navigator.onLine);
-    } finally {
-      const remainingPending = new Set(pendingIdsRef.current);
-      remainingPending.delete(task.id);
-      pendingIdsRef.current = remainingPending;
-      setPendingIds(remainingPending);
-    }
-  }
+  const loading = status === "loading";
+  const refreshing = status === "refreshing";
+  const loadingMore = status === "loading-more";
 
   const openTasks = tasks.filter((task) => !task.completed).length;
+
+  useEffect(() => taskListController.connect(), []);
 
   return (
     <View style={{ flex: 1, alignItems: "center", backgroundColor: colors.paper }}>
@@ -356,7 +127,7 @@ export function TaskListModule({ title = "Inbox" }: TaskListModuleProps) {
                 : error ?? "Tasks could not be refreshed."
             }
             offline={offline}
-            onRetry={() => void fetchTaskWindow(tasks.length === 0 ? "initial" : "refresh")}
+            onRetry={() => void taskListController.load(tasks.length === 0 ? "initial" : "refresh")}
           />
         ) : null}
 
@@ -378,7 +149,7 @@ export function TaskListModule({ title = "Inbox" }: TaskListModuleProps) {
                   accessibilityLabel="Load more tasks"
                   accessibilityRole="button"
                   disabled={loadingMore}
-                  onPress={() => void loadMore()}
+                  onPress={() => void taskListController.loadMore()}
                   style={({ pressed }) => ({
                     minHeight: 48,
                     alignItems: "center",
@@ -406,21 +177,29 @@ export function TaskListModule({ title = "Inbox" }: TaskListModuleProps) {
                 </Pressable>
               ) : null
             }
-            onRefresh={() => void fetchTaskWindow("refresh")}
+            onRefresh={() => void taskListController.load("refresh")}
             refreshing={refreshing}
             renderItem={({ item }) => (
-              <TaskRow
-                pending={pendingIds.has(item.id)}
-                task={item}
-                onOpen={() => openTask(item.id)}
-                onToggle={() => void toggleTask(item)}
-              />
+              <ConnectedTaskRow task={item} />
             )}
             showsVerticalScrollIndicator={false}
           />
         )}
       </View>
     </View>
+  );
+}
+
+function ConnectedTaskRow({ task }: { task: TaskRecord }) {
+  const mutation = useTaskMutation(task.id);
+  return (
+    <TaskRow
+      pending={mutation !== null}
+      task={task}
+      onOpen={() => openTask(task.id)}
+      onToggle={() => void taskListController.setCompleted(task.id, !task.completed)
+        .catch(() => undefined)}
+    />
   );
 }
 

@@ -7,7 +7,7 @@ import {
   WarningCircle,
   X,
 } from "phosphor-react-native";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -22,22 +22,17 @@ import {
 
 import {
   colors,
-  createTask,
-  deleteTask,
   fonts,
   getErrorMessage,
-  getTask,
   shadows,
-  updateTask,
   type TaskDraft,
 } from "@/core";
 import {
   closeTask,
-  getServerSnapshot,
-  getSnapshot,
-  markTasksChanged,
-  subscribe,
+  useTask,
+  useTaskDialog,
 } from "@/shared-state";
+import { taskDetailController } from "@/modules/task-detail/task-detail-controller";
 
 type FormValues = {
   title: string;
@@ -52,15 +47,11 @@ const EMPTY_FORM: FormValues = { title: "", notes: "", dueDate: "" };
 
 export function TaskDetailModule() {
   const { width, height } = useWindowDimensions();
-  const { taskDialog } = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
-  );
+  const taskDialog = useTaskDialog();
   const titleRef = useRef<TextInput>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const confirmationTriggerRef = useRef<HTMLElement | null>(null);
-  const fetchControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
   const [baseline, setBaseline] = useState<FormValues>(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -74,6 +65,7 @@ export function TaskDetailModule() {
   const visible = taskDialog !== null;
   const editing = taskDialog?.mode === "edit";
   const taskId = editing ? taskDialog.taskId : null;
+  const cachedTask = useTask(taskId);
   const narrow = width < 640;
   const canSave = !editing || loadedTaskId === taskId;
   const dirty =
@@ -148,50 +140,61 @@ export function TaskDetailModule() {
     };
   }, [confirmation, visible]);
 
+  const loadDialogTask = useEffectEvent((dialog: typeof taskDialog) => {
+    const requestId = ++requestIdRef.current;
+    setFieldErrors({});
+    setRequestError(null);
+    setConfirmation(null);
+    confirmationTriggerRef.current = null;
+    setLoadedTaskId(null);
+    setValues(EMPTY_FORM);
+    setBaseline(EMPTY_FORM);
+
+    if (!dialog || dialog.mode === "create") {
+      setLoading(false);
+      return;
+    }
+
+    const applyTask = (task: NonNullable<typeof cachedTask>) => {
+      if (requestId !== requestIdRef.current) return;
+      const nextValues: FormValues = {
+        title: task.title,
+        notes: task.notes,
+        dueDate: task.dueDate ?? "",
+      };
+      setValues(nextValues);
+      setBaseline(nextValues);
+      setLoadedTaskId(dialog.taskId);
+    };
+
+    if (cachedTask) {
+      applyTask(cachedTask);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    void taskDetailController.load(dialog.taskId)
+      .then(applyTask)
+      .catch((error) => {
+        if (requestId === requestIdRef.current) {
+          setRequestError(getErrorMessage(error, "This task could not be opened."));
+        }
+      })
+      .finally(() => {
+        if (requestId === requestIdRef.current) setLoading(false);
+      });
+  });
+
   useEffect(() => {
-    fetchControllerRef.current?.abort();
     const timeout = setTimeout(() => {
-      setFieldErrors({});
-      setRequestError(null);
-      setConfirmation(null);
-      confirmationTriggerRef.current = null;
-      setLoadedTaskId(null);
-      setValues(EMPTY_FORM);
-      setBaseline(EMPTY_FORM);
-
-      if (!taskDialog || taskDialog.mode === "create") {
-        setLoading(false);
-        return;
-      }
-
-      const controller = new AbortController();
-      fetchControllerRef.current = controller;
-      setLoading(true);
-
-      void getTask(taskDialog.taskId, { signal: controller.signal })
-        .then((task) => {
-          const nextValues: FormValues = {
-            title: task.title,
-            notes: task.notes,
-            dueDate: task.dueDate ?? "",
-          };
-          setValues(nextValues);
-          setBaseline(nextValues);
-          setLoadedTaskId(taskDialog.taskId);
-        })
-        .catch((error) => {
-          if (!controller.signal.aborted) {
-            setRequestError(getErrorMessage(error, "This task could not be opened."));
-          }
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setLoading(false);
-        });
+      loadDialogTask(taskDialog);
     }, 0);
 
     return () => {
       clearTimeout(timeout);
-      fetchControllerRef.current?.abort();
+      requestIdRef.current += 1;
+      taskDetailController.cancelLoad();
     };
   }, [taskDialog]);
 
@@ -269,9 +272,8 @@ export function TaskDetailModule() {
     };
 
     try {
-      if (taskId) await updateTask(taskId, draft);
-      else await createTask(draft);
-      markTasksChanged();
+      if (taskId) await taskDetailController.update(taskId, draft);
+      else await taskDetailController.create(draft);
       closeTask();
     } catch (error) {
       setRequestError(getErrorMessage(error, "The task could not be saved."));
@@ -285,8 +287,7 @@ export function TaskDetailModule() {
     setDeleting(true);
     setRequestError(null);
     try {
-      await deleteTask(taskId);
-      markTasksChanged();
+      await taskDetailController.delete(taskId);
       closeTask();
     } catch (error) {
       dismissConfirmation();

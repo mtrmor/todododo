@@ -9,16 +9,9 @@ import {
   WifiSlash,
   X,
 } from "phosphor-react-native";
-import {
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  AppState,
   FlatList,
   Pressable,
   Text,
@@ -30,84 +23,29 @@ import {
 import {
   colors,
   fonts,
-  getErrorMessage,
-  getTasks,
-  setTaskCompleted,
   shadows,
   type TaskRecord,
 } from "@/core";
 import {
-  getServerSnapshot,
-  getSnapshot,
-  markTasksChanged,
   openCreateTask,
   openTask,
-  subscribe,
+  useSearchTasks,
+  useTaskMutation,
 } from "@/shared-state";
-import {
-  appendTaskPage,
-  reconcileTaskWindow,
-  replaceTaskRecord,
-} from "@/modules/search/task-window-state";
+import { searchController } from "@/modules/search/search-controller";
 
 const SEARCH_DEBOUNCE_MS = 250;
-const PAGE_SIZE = 50;
-
-async function getSearchWindow(
-  searchQuery: string,
-  targetCount: number,
-  signal: AbortSignal,
-) {
-  const items: TaskRecord[] = [];
-  const seenCursors = new Set<string>();
-  let cursor: string | null = null;
-  let nextCursor: string | null = null;
-
-  do {
-    const page = await getTasks({
-      query: searchQuery || undefined,
-      cursor,
-      limit: PAGE_SIZE,
-      signal,
-    });
-    items.push(...page.items);
-    nextCursor = page.nextCursor;
-
-    if (!nextCursor || items.length >= targetCount || seenCursors.has(nextCursor)) {
-      break;
-    }
-
-    seenCursors.add(nextCursor);
-    cursor = nextCursor;
-  } while (items.length < targetCount);
-
-  return { items, nextCursor };
-}
-
 export function SearchModule() {
   const { width } = useWindowDimensions();
-  const { tasksRevision } = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
-  );
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [tasks, setTasks] = useState<TaskRecord[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
-  const [error, setError] = useState<string | null>(null);
-  const [offline, setOffline] = useState(false);
-  const controllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<TextInput>(null);
-  const requestIdRef = useRef(0);
-  const loadedCountRef = useRef(0);
-  const pendingIdsRef = useRef<ReadonlySet<string>>(new Set());
-  const ignoredRevisionRef = useRef<number | null>(null);
-  const previousQueryRef = useRef<string | null>(null);
+  const { tasks, nextCursor, status, error, offline } = useSearchTasks(debouncedQuery);
   const isCompact = width < 680;
+  const loading = status === "loading";
+  const loadingMore = status === "loading-more";
+
+  useEffect(() => searchController.connect(), []);
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedQuery(query.trim()), SEARCH_DEBOUNCE_MS);
@@ -115,195 +53,8 @@ export function SearchModule() {
   }, [query]);
 
   useEffect(() => {
-    loadedCountRef.current = tasks.length;
-  }, [tasks.length]);
-
-  async function runSearch(
-    searchQuery: string,
-    targetCount = PAGE_SIZE,
-    preserveMissingPending = true,
-  ) {
-    const requestId = ++requestIdRef.current;
-    controllerRef.current?.abort();
-    const controller = new AbortController();
-    controllerRef.current = controller;
-    setLoading(true);
-    setLoadingMore(false);
-
-    try {
-      const page = await getSearchWindow(searchQuery, targetCount, controller.signal);
-      if (requestId !== requestIdRef.current) return;
-      setTasks((current) =>
-        reconcileTaskWindow(
-          page.items,
-          current,
-          pendingIdsRef.current,
-          preserveMissingPending,
-        ),
-      );
-      setNextCursor(page.nextCursor);
-      setError(null);
-      setOffline(false);
-    } catch (caughtError) {
-      if (!controller.signal.aborted) {
-        setError(getErrorMessage(caughtError, "Search could not be completed."));
-        setOffline(typeof navigator !== "undefined" && !navigator.onLine);
-      }
-    } finally {
-      if (requestId === requestIdRef.current) setLoading(false);
-    }
-  }
-
-  const runSearchEffect = useEffectEvent(runSearch);
-
-  useEffect(() => {
-    const queryChanged = previousQueryRef.current !== debouncedQuery;
-    previousQueryRef.current = debouncedQuery;
-
-    if (ignoredRevisionRef.current === tasksRevision && !queryChanged) {
-      ignoredRevisionRef.current = null;
-      return;
-    }
-    if (ignoredRevisionRef.current === tasksRevision) {
-      ignoredRevisionRef.current = null;
-    }
-
-    const targetCount = queryChanged
-      ? PAGE_SIZE
-      : Math.max(PAGE_SIZE, loadedCountRef.current);
-    const timeout = setTimeout(
-      () => void runSearchEffect(debouncedQuery, targetCount, !queryChanged),
-      0,
-    );
-    return () => {
-      clearTimeout(timeout);
-      requestIdRef.current += 1;
-      controllerRef.current?.abort();
-    };
-  }, [debouncedQuery, tasksRevision]);
-
-  useEffect(
-    () => () => {
-      requestIdRef.current += 1;
-      controllerRef.current?.abort();
-    },
-    [],
-  );
-
-  useEffect(() => {
-    if (
-      process.env.EXPO_OS !== "web" ||
-      typeof window === "undefined" ||
-      typeof document === "undefined"
-    ) {
-      return;
-    }
-    const refreshIfVisible = () => {
-      if (document.visibilityState === "visible") {
-        void runSearchEffect(
-          debouncedQuery,
-          Math.max(PAGE_SIZE, loadedCountRef.current),
-        );
-      }
-    };
-    const handleOnline = () => {
-      setOffline(false);
-      void runSearchEffect(
-        debouncedQuery,
-        Math.max(PAGE_SIZE, loadedCountRef.current),
-      );
-    };
-    const handleOffline = () => setOffline(true);
-    const interval = window.setInterval(refreshIfVisible, 30_000);
-    window.addEventListener("focus", refreshIfVisible);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    document.addEventListener("visibilitychange", refreshIfVisible);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refreshIfVisible);
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-      document.removeEventListener("visibilitychange", refreshIfVisible);
-    };
+    searchController.setQuery(debouncedQuery);
   }, [debouncedQuery]);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") {
-        void runSearchEffect(
-          debouncedQuery,
-          Math.max(PAGE_SIZE, loadedCountRef.current),
-        );
-      }
-    });
-    return () => subscription.remove();
-  }, [debouncedQuery]);
-
-  async function loadMore() {
-    if (!nextCursor || loadingMore) return;
-    const requestId = ++requestIdRef.current;
-    controllerRef.current?.abort();
-    const controller = new AbortController();
-    controllerRef.current = controller;
-
-    setLoading(false);
-    setLoadingMore(true);
-    try {
-      const page = await getTasks({
-        query: debouncedQuery || undefined,
-        cursor: nextCursor,
-        limit: PAGE_SIZE,
-        signal: controller.signal,
-      });
-      if (requestId !== requestIdRef.current) return;
-      setTasks((current) => appendTaskPage(current, page.items, pendingIdsRef.current));
-      setNextCursor(page.nextCursor);
-      setError(null);
-      setOffline(false);
-    } catch (caughtError) {
-      if (controller.signal.aborted) return;
-      setError(getErrorMessage(caughtError, "More results could not be loaded."));
-      setOffline(typeof navigator !== "undefined" && !navigator.onLine);
-    } finally {
-      if (requestId === requestIdRef.current) setLoadingMore(false);
-    }
-  }
-
-  async function toggleTask(task: TaskRecord) {
-    if (pendingIdsRef.current.has(task.id)) return;
-    const nextCompleted = !task.completed;
-    const nextPending = new Set(pendingIdsRef.current).add(task.id);
-    pendingIdsRef.current = nextPending;
-    setPendingIds(nextPending);
-    setTasks((current) =>
-      current.map((item) =>
-        item.id === task.id ? { ...item, completed: nextCompleted } : item,
-      ),
-    );
-
-    try {
-      const savedTask = await setTaskCompleted(task.id, nextCompleted);
-      setTasks((current) => replaceTaskRecord(current, savedTask));
-      setError(null);
-      setOffline(false);
-      markTasksChanged();
-      ignoredRevisionRef.current = getSnapshot().tasksRevision;
-    } catch (caughtError) {
-      setTasks((current) =>
-        current.map((item) =>
-          item.id === task.id ? { ...item, completed: task.completed } : item,
-        ),
-      );
-      setError(getErrorMessage(caughtError, "The task was not changed."));
-      setOffline(typeof navigator !== "undefined" && !navigator.onLine);
-    } finally {
-      const remainingPending = new Set(pendingIdsRef.current);
-      remainingPending.delete(task.id);
-      pendingIdsRef.current = remainingPending;
-      setPendingIds(remainingPending);
-    }
-  }
 
   return (
     <View style={{ flex: 1, alignItems: "center", backgroundColor: colors.paper }}>
@@ -434,12 +185,7 @@ export function SearchModule() {
                 : error ?? "Search could not be completed."
             }
             offline={offline}
-            onRetry={() =>
-              void runSearch(
-                debouncedQuery,
-                Math.max(PAGE_SIZE, loadedCountRef.current),
-              )
-            }
+            onRetry={() => void searchController.load("refresh")}
           />
         ) : null}
 
@@ -537,7 +283,7 @@ export function SearchModule() {
                   accessibilityLabel="Load more search results"
                   accessibilityRole="button"
                   disabled={loadingMore}
-                  onPress={() => void loadMore()}
+                  onPress={() => void searchController.loadMore()}
                   style={({ pressed }) => ({
                     minHeight: 48,
                     alignItems: "center",
@@ -566,18 +312,26 @@ export function SearchModule() {
               ) : null
             }
             renderItem={({ item }) => (
-              <SearchTaskRow
-                pending={pendingIds.has(item.id)}
-                task={item}
-                onOpen={() => openTask(item.id)}
-                onToggle={() => void toggleTask(item)}
-              />
+              <ConnectedSearchTaskRow task={item} />
             )}
             showsVerticalScrollIndicator={false}
           />
         )}
       </View>
     </View>
+  );
+}
+
+function ConnectedSearchTaskRow({ task }: { task: TaskRecord }) {
+  const mutation = useTaskMutation(task.id);
+  return (
+    <SearchTaskRow
+      pending={mutation !== null}
+      task={task}
+      onOpen={() => openTask(task.id)}
+      onToggle={() => void searchController.setCompleted(task.id, !task.completed)
+        .catch(() => undefined)}
+    />
   );
 }
 

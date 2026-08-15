@@ -15,18 +15,11 @@ import {
   X,
 } from "phosphor-react-native";
 import { useRouter } from "expo-router";
-import {
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useState } from "react";
 import {
   AccessibilityInfo,
   ActivityIndicator,
   Animated,
-  AppState,
   Pressable,
   ScrollView,
   Text,
@@ -37,17 +30,15 @@ import {
   colors,
   fonts,
   getErrorMessage,
-  getTaskSummary,
   shadows,
   useAuth,
 } from "@/core";
 import {
-  getServerSnapshot,
-  getSnapshot,
   closeTask,
   openCreateTask,
-  subscribe,
+  useTaskSummary,
 } from "@/shared-state";
+import { sidebarController } from "@/modules/sidebar/sidebar-controller";
 
 export type SidebarRoute =
   | "inbox"
@@ -65,14 +56,6 @@ export type SidebarModuleProps = {
   onNavigate?: (route: SidebarRoute) => void;
   onClose?: () => void;
 };
-
-type SummaryState = {
-  total: number;
-  open: number;
-  completed: number;
-};
-
-const EMPTY_SUMMARY: SummaryState = { total: 0, open: 0, completed: 0 };
 
 const ROUTES: Record<SidebarRoute, string> = {
   inbox: "/inbox",
@@ -93,73 +76,11 @@ export function SidebarModule({
 }: SidebarModuleProps) {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { tasksRevision } = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
-  );
-  const [summary, setSummary] = useState<SummaryState>(EMPTY_SUMMARY);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const { data: summary, error: summaryError } = useTaskSummary();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
-  const summaryControllerRef = useRef<AbortController | null>(null);
 
-  const refreshSummary = useEffectEvent(async () => {
-    summaryControllerRef.current?.abort();
-    const controller = new AbortController();
-    summaryControllerRef.current = controller;
-
-    try {
-      const nextSummary = await getTaskSummary({ signal: controller.signal });
-      setSummary(nextSummary);
-      setSummaryError(null);
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        setSummaryError(getErrorMessage(error, "Task progress is unavailable."));
-      }
-    }
-  });
-
-  useEffect(() => {
-    const timeout = setTimeout(() => void refreshSummary(), 0);
-    return () => {
-      clearTimeout(timeout);
-      summaryControllerRef.current?.abort();
-    };
-  }, [tasksRevision]);
-
-  useEffect(() => {
-    if (
-      process.env.EXPO_OS !== "web" ||
-      typeof window === "undefined" ||
-      typeof document === "undefined"
-    ) {
-      return;
-    }
-
-    const refreshIfVisible = () => {
-      if (document.visibilityState === "visible") void refreshSummary();
-    };
-    const interval = window.setInterval(refreshIfVisible, 30_000);
-
-    window.addEventListener("focus", refreshIfVisible);
-    window.addEventListener("online", refreshIfVisible);
-    document.addEventListener("visibilitychange", refreshIfVisible);
-
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refreshIfVisible);
-      window.removeEventListener("online", refreshIfVisible);
-      document.removeEventListener("visibilitychange", refreshIfVisible);
-    };
-  }, []);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") void refreshSummary();
-    });
-    return () => subscription.remove();
-  }, []);
+  useEffect(() => sidebarController.connect(), []);
 
   const routeProgress =
     summary.total === 0

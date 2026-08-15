@@ -49,6 +49,26 @@ function importedSpecifiers(filePath: string): string[] {
   return specifiers;
 }
 
+function importsNamedFrom(filePath: string, packageName: string, importName: string): boolean {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    fs.readFileSync(filePath, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  return sourceFile.statements.some((statement) =>
+    ts.isImportDeclaration(statement) &&
+    ts.isStringLiteral(statement.moduleSpecifier) &&
+    statement.moduleSpecifier.text === packageName &&
+    statement.importClause?.namedBindings &&
+    ts.isNamedImports(statement.importClause.namedBindings) &&
+    statement.importClause.namedBindings.elements.some(
+      (element) => (element.propertyName?.text ?? element.name.text) === importName,
+    ),
+  );
+}
+
 function resolveProjectImport(fromFile: string, specifier: string): string | null {
   if (specifier.startsWith("@/")) return path.join(sourceRoot, specifier.slice(2));
   if (specifier.startsWith(".")) return path.resolve(path.dirname(fromFile), specifier);
@@ -66,6 +86,10 @@ describe("architecture boundaries", () => {
 
     for (const filePath of sourceFiles(sourceRoot)) {
       const sourceArea = area(filePath);
+      const isModuleController = sourceArea.kind === "modules" && filePath.endsWith("-controller.ts");
+      if (sourceArea.kind === "modules" && importsNamedFrom(filePath, "react", "useSyncExternalStore")) {
+        violations.push(`${path.relative(projectRoot, filePath)} imports raw useSyncExternalStore`);
+      }
       for (const specifier of importedSpecifiers(filePath)) {
         const resolved = resolveProjectImport(filePath, specifier);
         const targetArea = resolved ? area(resolved) : null;
@@ -76,11 +100,36 @@ describe("architecture boundaries", () => {
         if ((sourceArea.kind === "core" || sourceArea.kind === "shared-state") && targetArea?.kind === "modules") {
           violations.push(`${path.relative(projectRoot, filePath)} imports a UI module via ${specifier}`);
         }
+        if ((sourceArea.kind === "core" || sourceArea.kind === "shared-state") && targetArea?.kind === "root") {
+          violations.push(`${path.relative(projectRoot, filePath)} imports the Root layer via ${specifier}`);
+        }
+        if (sourceArea.kind === "root" && targetArea?.kind === "modules") {
+          violations.push(`${path.relative(projectRoot, filePath)} imports a visible UI module via ${specifier}`);
+        }
         if (sourceArea.kind === "shared-state" && (targetArea?.kind === "core" || /(?:supabase|powersync|sqlite|watermelondb)/i.test(specifier))) {
           violations.push(`${path.relative(projectRoot, filePath)} imports a data layer via ${specifier}`);
         }
+        if (sourceArea.kind === "core" && targetArea?.kind === "shared-state") {
+          violations.push(`${path.relative(projectRoot, filePath)} imports Shared State via ${specifier}`);
+        }
+        if (sourceArea.kind === "modules" && !isModuleController && /@\/shared-state\/(?:internal|external-store|tasks-store|ui-store|broadcast-bridge)(?:\/|$)/.test(specifier)) {
+          violations.push(`${path.relative(projectRoot, filePath)} imports internal Shared State via ${specifier}`);
+        }
+        if (sourceArea.kind === "domain" && targetArea && targetArea.kind !== "domain") {
+          violations.push(`${path.relative(projectRoot, filePath)} imports ${targetArea.kind} via ${specifier}`);
+        }
+      }
+
+      if (sourceArea.kind === "modules" && path.basename(filePath) === "index.ts") {
+        for (const specifier of importedSpecifiers(filePath)) {
+          if (specifier.includes("controller")) {
+            violations.push(`${path.relative(projectRoot, filePath)} exposes a module controller`);
+          }
+        }
       }
     }
+
+    expect(fs.existsSync(path.join(sourceRoot, "core", "tasks", "tasks-controller.ts"))).toBe(false);
 
     expect(violations).toEqual([]);
   });

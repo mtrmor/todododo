@@ -47,7 +47,8 @@
         {
           "backgroundColor": "#F4F3F8"
         }
-      ]
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
