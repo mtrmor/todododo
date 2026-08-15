@@ -93,9 +93,14 @@ Start the Expo web app:
 npm run dev:web
 ```
 
-No `EXPO_PUBLIC_SUPABASE_*` variable is used on web. Do not put an access token,
-refresh token, session object, service-role key, or database URI in any client
-environment variable.
+For the iOS Simulator, also set `EXPO_PUBLIC_SUPABASE_URL`,
+`EXPO_PUBLIC_SUPABASE_FUNCTION_URL`, and
+`EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` as shown in `.env.example`. The simulator
+can reach Supabase on the Mac through `127.0.0.1`. A physical device must use
+the Mac's LAN address instead. These variables are embedded in the native app;
+only use the publishable key. Do not put an access token, refresh token, session
+object, service-role key, secret key, or database URI in any client environment
+variable. The web client does not read these `EXPO_PUBLIC_SUPABASE_*` values.
 
 ## Checks
 
