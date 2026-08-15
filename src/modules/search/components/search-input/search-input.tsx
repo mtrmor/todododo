@@ -1,8 +1,10 @@
 import { MagnifyingGlass, X } from "phosphor-react-native";
 import { useRef } from "react";
-import { Pressable, TextInput, View } from "react-native";
-import { colors } from "@/platform";
+import { TextInput } from "react-native";
+
 import { styles } from "@/modules/search/components/search-input/styles";
+import { TextField } from "@/platform/ui";
+
 export function SearchInput({
   query,
   onChange,
@@ -12,35 +14,31 @@ export function SearchInput({
 }) {
   const inputRef = useRef<TextInput>(null);
   return (
-    <View style={styles.container}>
-      <MagnifyingGlass aria-hidden color={colors.mutedInk} size={17} style={styles.searchIcon} />
-      <TextInput
-        accessibilityLabel="Search tasks"
-        autoCapitalize="none"
-        autoCorrect={false}
-        clearButtonMode="never"
-        onChangeText={onChange}
-        placeholder="Search every title and note"
-        placeholderTextColor={colors.placeholder}
-        ref={inputRef}
-        returnKeyType="search"
-        selectionColor={colors.routeViolet}
-        style={[styles.input, query && styles.inputWithClear]}
-        value={query}
-      />
-      {query ? (
-        <Pressable
-          accessibilityLabel="Clear search"
-          accessibilityRole="button"
-          onPress={() => {
-            onChange("");
-            inputRef.current?.focus();
-          }}
-          style={({ pressed }) => [styles.clear, pressed && styles.clearPressed]}
-        >
-          <X aria-hidden color={colors.mutedInk} size={17} />
-        </Pressable>
-      ) : null}
-    </View>
+    <TextField
+      accessibilityLabel="Search tasks"
+      autoCapitalize="none"
+      autoCorrect={false}
+      clearButtonMode="never"
+      elevated
+      inputRef={inputRef}
+      inputStyle={styles.input}
+      leadingIcon={MagnifyingGlass}
+      onChangeText={onChange}
+      placeholder="Search every title and note"
+      returnKeyType="search"
+      trailingAction={
+        query
+          ? {
+              icon: X,
+              label: "Clear search",
+              onPress: () => {
+                onChange("");
+                inputRef.current?.focus();
+              },
+            }
+          : undefined
+      }
+      value={query}
+    />
   );
 }

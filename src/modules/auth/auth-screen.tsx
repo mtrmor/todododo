@@ -1,15 +1,13 @@
 import { Eye, EyeSlash } from "phosphor-react-native";
 import { ScrollView, View } from "react-native";
 
-import { AuthFormError } from "@/modules/auth/components/auth-form-error/auth-form-error";
-import { AuthSubmitAction } from "@/modules/auth/components/auth-submit-action/auth-submit-action";
 import { AuthSwitchLink } from "@/modules/auth/components/auth-switch-link/auth-switch-link";
 import { AuthText } from "@/modules/auth/components/auth-text/auth-text";
 import { BrandMark } from "@/modules/auth/components/brand-mark/brand-mark";
-import { FormField } from "@/modules/auth/components/form-field/form-field";
 import { RouteStep } from "@/modules/auth/components/route-step/route-step";
 import { useAuthForm } from "@/modules/auth/hooks/use-auth-form";
 import { styles } from "@/modules/auth/styles";
+import { Button, NoticeBanner, TextField } from "@/platform/ui";
 
 export type AuthScreenProps = { variant: "sign-in" | "sign-up" };
 
@@ -60,8 +58,8 @@ export function AuthScreen({ variant }: AuthScreenProps) {
             </View>
 
             <View style={styles.formFields}>
-              {form.formError ? <AuthFormError message={form.formError} /> : null}
-              <FormField
+              {form.formError ? <NoticeBanner message={form.formError} tone="error" /> : null}
+              <TextField
                 autoCapitalize="none"
                 autoComplete="email"
                 error={form.fieldErrors.email}
@@ -73,7 +71,7 @@ export function AuthScreen({ variant }: AuthScreenProps) {
                 returnKeyType="next"
                 value={form.email}
               />
-              <FormField
+              <TextField
                 autoCapitalize="none"
                 autoComplete={form.isSignUp ? "new-password" : "current-password"}
                 error={form.fieldErrors.password}
@@ -94,7 +92,7 @@ export function AuthScreen({ variant }: AuthScreenProps) {
                 value={form.password}
               />
               {form.isSignUp ? (
-                <FormField
+                <TextField
                   autoCapitalize="none"
                   autoComplete="new-password"
                   error={form.fieldErrors.passwordConfirmation}
@@ -108,11 +106,20 @@ export function AuthScreen({ variant }: AuthScreenProps) {
                   value={form.passwordConfirmation}
                 />
               ) : null}
-              <AuthSubmitAction
-                isSignUp={form.isSignUp}
+              <Button
+                loading={form.submitting}
                 onPress={() => void form.submit()}
-                submitting={form.submitting}
-              />
+                size="large"
+                style={styles.submitAction}
+              >
+                {form.submitting
+                  ? form.isSignUp
+                    ? "Creating account…"
+                    : "Signing in…"
+                  : form.isSignUp
+                    ? "Create account"
+                    : "Sign in"}
+              </Button>
             </View>
             <AuthSwitchLink isSignUp={form.isSignUp} />
           </View>

@@ -1,10 +1,10 @@
 import { KeyboardAvoidingView, Modal, Pressable, View } from "react-native";
 import { ConfirmationLayer } from "@/modules/task-detail/components/confirmation-layer/confirmation-layer";
 import { DialogHeader } from "@/modules/task-detail/components/dialog-header/dialog-header";
-import { LoadingState } from "@/modules/task-detail/components/loading-state/loading-state";
 import { TaskForm } from "@/modules/task-detail/components/task-form/task-form";
 import { useTaskDetailForm } from "@/modules/task-detail/hooks/use-task-detail-form";
 import { styles } from "@/modules/task-detail/styles";
+import { ScreenState } from "@/platform/ui";
 
 export function TaskDetailModule() {
   const form = useTaskDetailForm();
@@ -49,7 +49,11 @@ export function TaskDetailModule() {
               narrow={form.narrow}
               onClose={form.requestClose}
             />
-            {form.loading ? <LoadingState /> : <TaskForm {...form} />}
+            {form.loading ? (
+              <ScreenState loading message="Opening task…" style={styles.loadingState} />
+            ) : (
+              <TaskForm {...form} />
+            )}
             {form.confirmation ? (
               <ConfirmationLayer
                 busy={form.deleting}

@@ -1,7 +1,9 @@
 import { PathIcon, X } from "phosphor-react-native";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+
 import { colors } from "@/platform";
 import { styles } from "@/modules/sidebar/components/sidebar-header/styles";
+import { IconButton } from "@/platform/ui";
 
 export function SidebarHeader({
   showLabels,
@@ -20,16 +22,7 @@ export function SidebarHeader({
         </View>
         {showLabels ? <Text style={styles.label}>TodoDodo</Text> : null}
       </View>
-      {mobile ? (
-        <Pressable
-          accessibilityLabel="Close navigation"
-          accessibilityRole="button"
-          onPress={onClose}
-          style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
-        >
-          <X aria-hidden color={colors.mutedInk} size={20} />
-        </Pressable>
-      ) : null}
+      {mobile ? <IconButton icon={X} label="Close navigation" onPress={onClose} /> : null}
     </View>
   );
 }

@@ -1,11 +1,10 @@
-import { CalendarBlank } from "phosphor-react-native";
-import { ScrollView, TextInput, View } from "react-native";
-import { colors } from "@/platform";
+import { CalendarBlank, WarningCircle } from "phosphor-react-native";
+import { ScrollView } from "react-native";
+
 import { FormActions } from "@/modules/task-detail/components/form-actions/form-actions";
-import { RequestError } from "@/modules/task-detail/components/request-error/request-error";
-import { TaskField } from "@/modules/task-detail/components/task-field/task-field";
 import type { useTaskDetailForm } from "@/modules/task-detail/hooks/use-task-detail-form";
 import { styles } from "@/modules/task-detail/components/task-form/styles";
+import { NoticeBanner, TextField } from "@/platform/ui";
 
 type Form = ReturnType<typeof useTaskDetailForm>;
 type Props = Pick<
@@ -51,58 +50,50 @@ export function TaskForm({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      {requestError ? <RequestError message={requestError} /> : null}
-      <TaskField label="Title" error={fieldErrors.title} required>
-        <TextInput
-          accessibilityLabel="Task title"
-          aria-invalid={Boolean(fieldErrors.title)}
-          autoCapitalize="sentences"
-          autoFocus={!editing}
-          maxLength={240}
-          onChangeText={(value) => updateField("title", value)}
-          placeholder="What needs to move forward?"
-          placeholderTextColor={colors.placeholder}
-          ref={titleRef}
-          returnKeyType="next"
-          selectionColor={colors.routeViolet}
-          style={[styles.input, fieldErrors.title && styles.inputError]}
-          value={values.title}
-        />
-      </TaskField>
-      <TaskField label="Notes" error={fieldErrors.notes} counter={`${values.notes.length} / 5,000`}>
-        <TextInput
-          accessibilityLabel="Task notes"
-          aria-invalid={Boolean(fieldErrors.notes)}
-          maxLength={5000}
-          multiline
-          onChangeText={(value) => updateField("notes", value)}
-          placeholder="Context, links, or the definition of done"
-          placeholderTextColor={colors.placeholder}
-          selectionColor={colors.routeViolet}
-          style={[styles.input, styles.notesInput, fieldErrors.notes && styles.inputError]}
-          value={values.notes}
-        />
-      </TaskField>
-      <TaskField label="Due date" error={fieldErrors.dueDate} hint="YYYY-MM-DD">
-        <View style={styles.dateContainer}>
-          <CalendarBlank aria-hidden color={colors.mutedInk} size={17} style={styles.dateIcon} />
-          <TextInput
-            accessibilityLabel="Due date, YYYY-MM-DD"
-            aria-invalid={Boolean(fieldErrors.dueDate)}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="numbers-and-punctuation"
-            maxLength={10}
-            onChangeText={(value) => updateField("dueDate", value)}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.placeholder}
-            returnKeyType="done"
-            selectionColor={colors.routeViolet}
-            style={[styles.input, styles.dateInput, fieldErrors.dueDate && styles.inputError]}
-            value={values.dueDate}
-          />
-        </View>
-      </TaskField>
+      {requestError ? (
+        <NoticeBanner icon={WarningCircle} message={requestError} tone="error" />
+      ) : null}
+      <TextField
+        accessibilityLabel="Task title"
+        autoCapitalize="sentences"
+        autoFocus={!editing}
+        error={fieldErrors.title}
+        inputRef={titleRef}
+        label="Title"
+        maxLength={240}
+        onChangeText={(value) => updateField("title", value)}
+        placeholder="What needs to move forward?"
+        required
+        returnKeyType="next"
+        value={values.title}
+      />
+      <TextField
+        accessibilityLabel="Task notes"
+        counter={`${values.notes.length} / 5,000`}
+        error={fieldErrors.notes}
+        inputStyle={styles.notesInput}
+        label="Notes"
+        maxLength={5000}
+        multiline
+        onChangeText={(value) => updateField("notes", value)}
+        placeholder="Context, links, or the definition of done"
+        value={values.notes}
+      />
+      <TextField
+        accessibilityLabel="Due date, YYYY-MM-DD"
+        autoCapitalize="none"
+        autoCorrect={false}
+        error={fieldErrors.dueDate}
+        hint="YYYY-MM-DD"
+        keyboardType="numbers-and-punctuation"
+        label="Due date"
+        leadingIcon={CalendarBlank}
+        maxLength={10}
+        onChangeText={(value) => updateField("dueDate", value)}
+        placeholder="YYYY-MM-DD"
+        returnKeyType="done"
+        value={values.dueDate}
+      />
       <FormActions
         editing={editing}
         narrow={narrow}

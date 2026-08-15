@@ -45,9 +45,11 @@ The complete direct-import matrix is:
 - `src/app/` contains Expo Router routes, providers, and module composition.
 - `src/modules/` contains independent visible UI modules. A module may import
   Platform, Shared State, Domain, and packages, but never another module.
-- `src/platform/` owns API transports, auth, lifecycle, theme, and shared types.
-  It depends only on Domain and external packages.
-- `src/root/` composes Platform with Shared State and owns shared root UI.
+- `src/platform/` owns API transports, auth, lifecycle, theme, shared types, and
+  the reusable UI kit exported through `@/platform/ui`. It depends only on
+  Domain and external packages; UI is intentionally not re-exported from the
+  top-level `@/platform` barrel.
+- `src/root/` composes Platform with Shared State and owns root providers.
 - `src/shared-state/` is a synchronous `useSyncExternalStore` UI bus. It has no
   Platform, network, Supabase, or database imports.
 - `src/server/` contains the allowlisted same-origin API proxy.

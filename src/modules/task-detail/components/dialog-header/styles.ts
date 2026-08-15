@@ -29,15 +29,4 @@ export const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   subtitle: { color: colors.mutedInk, fontFamily: fonts.body, fontSize: 11 },
-  close: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 12,
-    cursor: "pointer",
-    outlineColor: colors.focusRing,
-  },
-  closePressed: { opacity: 0.55 },
-  closeDisabled: { cursor: "auto" },
 });

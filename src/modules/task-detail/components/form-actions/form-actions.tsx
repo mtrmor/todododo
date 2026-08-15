@@ -1,7 +1,8 @@
 import { FloppyDisk, Trash } from "phosphor-react-native";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
-import { colors } from "@/platform";
+import { View } from "react-native";
+
 import { styles } from "@/modules/task-detail/components/form-actions/styles";
+import { Button } from "@/platform/ui";
 type Props = {
   editing: boolean;
   narrow: boolean;
@@ -27,58 +28,36 @@ export function FormActions({
   return (
     <View style={[styles.container, narrow ? styles.containerNarrow : styles.containerWide]}>
       {editing ? (
-        <Pressable
-          accessibilityLabel="Delete task"
-          accessibilityRole="button"
+        <Button
           disabled={disabled}
+          icon={Trash}
           onPress={onDelete}
-          style={({ pressed }) => [
-            styles.delete,
-            pressed && styles.deletePressed,
-            disabled && styles.disabled,
-          ]}
+          style={styles.delete}
+          variant="dangerOutline"
         >
-          <Trash aria-hidden color={colors.danger} size={17} />
-          <Text style={styles.deleteLabel}>Delete</Text>
-        </Pressable>
+          Delete
+        </Button>
       ) : (
         <View />
       )}
       <View style={[styles.primaryActions, narrow && styles.primaryActionsNarrow]}>
-        <Pressable
+        <Button
           accessibilityLabel="Cancel task changes"
-          accessibilityRole="button"
           disabled={busy}
           onPress={onCancel}
-          style={({ pressed }) => [
-            styles.cancel,
-            pressed && styles.cancelPressed,
-            busy && styles.cursorDisabled,
-          ]}
+          variant="secondary"
         >
-          <Text style={styles.cancelLabel}>Cancel</Text>
-        </Pressable>
-        <Pressable
-          accessibilityLabel="Save task"
-          accessibilityRole="button"
+          Cancel
+        </Button>
+        <Button
           disabled={disabled}
+          icon={FloppyDisk}
+          loading={saving}
           onPress={onSave}
-          style={({ pressed }) => [
-            styles.save,
-            !narrow && styles.saveWide,
-            pressed && styles.savePressed,
-            disabled && styles.saveDisabled,
-          ]}
+          style={!narrow ? styles.saveWide : undefined}
         >
-          {saving ? (
-            <ActivityIndicator color={colors.paper} size="small" />
-          ) : (
-            <>
-              <FloppyDisk aria-hidden color={colors.paper} size={17} weight="bold" />
-              <Text style={styles.saveLabel}>Save task</Text>
-            </>
-          )}
-        </Pressable>
+          Save task
+        </Button>
       </View>
     </View>
   );

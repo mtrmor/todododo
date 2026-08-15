@@ -25,4 +25,5 @@ export const styles = StyleSheet.create({
     borderCurve: "continuous",
     boxShadow: shadows.floating,
   },
+  loadingState: { minHeight: 340 },
 });

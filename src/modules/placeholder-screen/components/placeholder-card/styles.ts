@@ -43,4 +43,5 @@ export const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: "center",
   },
+  backAction: { alignSelf: "center" },
 });

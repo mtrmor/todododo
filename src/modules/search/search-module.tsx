@@ -1,12 +1,17 @@
+import {
+  ArrowClockwise,
+  MagnifyingGlass,
+  Plus,
+  WarningCircle,
+  WifiSlash,
+} from "phosphor-react-native";
 import { FlatList, Text, View } from "react-native";
-import { AddTaskAction } from "@/modules/search/components/add-task-action/add-task-action";
-import { PaginationAction } from "@/modules/search/components/pagination-action/pagination-action";
-import { SearchError } from "@/modules/search/components/search-error/search-error";
+
 import { SearchInput } from "@/modules/search/components/search-input/search-input";
-import { SearchState } from "@/modules/search/components/search-state/search-state";
 import { ConnectedSearchTaskRow } from "@/modules/search/components/search-task-row/search-task-row";
 import { useSearchModule } from "@/modules/search/hooks/use-search-module";
 import { styles } from "@/modules/search/styles";
+import { Button, NoticeBanner, ScreenState } from "@/platform/ui";
 import { openCreateTask } from "@/shared-state";
 
 export function SearchModule() {
@@ -24,14 +29,35 @@ export function SearchModule() {
           </Text>
           <SearchInput onChange={search.setQuery} query={search.query} />
         </View>
-        <AddTaskAction onPress={() => openCreateTask()} />
+        <Button
+          icon={Plus}
+          onPress={() => openCreateTask()}
+          style={styles.addAction}
+          variant="ghost"
+        >
+          Add task
+        </Button>
         {search.message ? (
-          <SearchError message={search.message} offline={search.offline} onRetry={search.retry} />
+          <NoticeBanner
+            action={{ icon: ArrowClockwise, label: "Retry search", onPress: search.retry }}
+            icon={search.offline ? WifiSlash : WarningCircle}
+            message={search.message}
+            tone={search.offline ? "neutral" : "error"}
+          />
         ) : null}
         {search.loading && search.tasks.length === 0 ? (
-          <SearchState kind="loading" />
+          <ScreenState loading message="Searching tasks…" style={styles.screenState} />
         ) : search.tasks.length === 0 && !search.error && !search.offline ? (
-          <SearchState kind="empty" query={search.debouncedQuery} />
+          <ScreenState
+            icon={MagnifyingGlass}
+            message={
+              search.debouncedQuery
+                ? `Try a different word than “${search.debouncedQuery}”.`
+                : "Create a task and it will be searchable here."
+            }
+            style={styles.screenState}
+            title={search.debouncedQuery ? "No matching tasks" : "No tasks yet"}
+          />
         ) : search.tasks.length === 0 ? (
           <View style={styles.fill} />
         ) : (
@@ -51,7 +77,14 @@ export function SearchModule() {
             }
             ListFooterComponent={
               search.nextCursor ? (
-                <PaginationAction loading={search.loadingMore} onPress={search.loadMore} />
+                <Button
+                  loading={search.loadingMore}
+                  onPress={search.loadMore}
+                  style={styles.paginationAction}
+                  variant="ghost"
+                >
+                  Load more results
+                </Button>
               ) : null
             }
             renderItem={({ item }) => <ConnectedSearchTaskRow task={item} />}

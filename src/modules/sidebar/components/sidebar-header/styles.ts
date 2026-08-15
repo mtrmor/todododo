@@ -22,14 +22,4 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: -0.2,
   },
-  close: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 12,
-    cursor: "pointer",
-    outlineColor: colors.focusRing,
-  },
-  closePressed: { opacity: 0.58 },
 });

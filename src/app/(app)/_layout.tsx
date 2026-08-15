@@ -1,4 +1,5 @@
 import { colors, fonts, useAuth } from "@/platform";
+import { IconButton } from "@/platform/ui";
 import { SidebarModule, type SidebarRoute } from "@/modules/sidebar";
 import { TaskDetailModule } from "@/modules/task-detail";
 import { List, PathIcon } from "phosphor-react-native";
@@ -102,14 +103,7 @@ export default function AppLayout() {
 function MobileHeader({ onOpen }: { onOpen: () => void }) {
   return (
     <View style={styles.mobileHeader}>
-      <Pressable
-        accessibilityLabel="Open navigation"
-        accessibilityRole="button"
-        onPress={onOpen}
-        style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
-      >
-        <List aria-hidden color={colors.ink} size={21} weight="regular" />
-      </Pressable>
+      <IconButton icon={List} label="Open navigation" onPress={onOpen} />
       <View style={styles.mobileBrand}>
         <View style={styles.mobileMark}>
           <PathIcon aria-hidden color={colors.routeViolet} size={17} weight="bold" />
@@ -155,14 +149,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
   },
-  menuButton: {
-    alignItems: "center",
-    borderRadius: 12,
-    height: 44,
-    justifyContent: "center",
-    outlineColor: colors.focusRing,
-    width: 44,
-  },
   mobileBrand: {
     alignItems: "center",
     flexDirection: "row",
@@ -202,8 +188,5 @@ const styles = StyleSheet.create({
   },
   pageMobile: {
     flexDirection: "column",
-  },
-  pressed: {
-    backgroundColor: colors.lavenderSelection,
   },
 });

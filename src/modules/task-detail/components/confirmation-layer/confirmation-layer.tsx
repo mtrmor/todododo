@@ -1,8 +1,10 @@
 import { Check, Trash, WarningCircle } from "phosphor-react-native";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+
 import { colors } from "@/platform";
 import type { ConfirmationKind } from "@/modules/task-detail/hooks/use-task-detail-form";
 import { styles } from "@/modules/task-detail/components/confirmation-layer/styles";
+import { Button } from "@/platform/ui";
 export function ConfirmationLayer({
   kind,
   busy,
@@ -45,40 +47,25 @@ export function ConfirmationLayer({
           </View>
         </View>
         <View style={styles.actions}>
-          <Pressable
+          <Button
             accessibilityLabel="Keep editing"
-            accessibilityRole="button"
             disabled={busy}
             onPress={onCancel}
-            style={({ pressed }) => [
-              styles.cancel,
-              pressed && styles.cancelPressed,
-              busy && styles.disabledCursor,
-            ]}
+            variant="secondary"
           >
-            <Text style={styles.cancelLabel}>Keep editing</Text>
-          </Pressable>
-          <Pressable
+            Keep editing
+          </Button>
+          <Button
             accessibilityLabel={deleting ? "Delete task permanently" : "Discard changes"}
-            accessibilityRole="button"
             disabled={busy}
+            icon={Check}
+            loading={busy}
             onPress={onConfirm}
-            style={({ pressed }) => [
-              styles.confirm,
-              deleting ? styles.deleteConfirm : styles.discardConfirm,
-              pressed && !deleting && styles.discardPressed,
-              busy && styles.busy,
-            ]}
+            style={styles.confirm}
+            variant={deleting ? "danger" : "primary"}
           >
-            {busy ? (
-              <ActivityIndicator color={colors.paper} size="small" />
-            ) : (
-              <>
-                <Check aria-hidden color={colors.paper} size={16} weight="bold" />
-                <Text style={styles.confirmLabel}>{deleting ? "Delete" : "Discard"}</Text>
-              </>
-            )}
-          </Pressable>
+            {deleting ? "Delete" : "Discard"}
+          </Button>
         </View>
       </View>
     </View>

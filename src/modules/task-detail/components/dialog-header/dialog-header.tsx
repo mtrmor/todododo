@@ -1,7 +1,9 @@
 import { NotePencil, X } from "phosphor-react-native";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+
 import { colors } from "@/platform";
 import { styles } from "@/modules/task-detail/components/dialog-header/styles";
+import { IconButton } from "@/platform/ui";
 export function DialogHeader({
   editing,
   narrow,
@@ -32,19 +34,7 @@ export function DialogHeader({
           {editing ? "Make the next step clearer." : "Add one clear thing to your route."}
         </Text>
       </View>
-      <Pressable
-        accessibilityLabel="Close task details"
-        accessibilityRole="button"
-        disabled={busy}
-        onPress={onClose}
-        style={({ pressed }) => [
-          styles.close,
-          pressed && styles.closePressed,
-          busy && styles.closeDisabled,
-        ]}
-      >
-        <X aria-hidden color={colors.mutedInk} size={20} />
-      </Pressable>
+      <IconButton disabled={busy} icon={X} label="Close task details" onPress={onClose} />
     </View>
   );
 }

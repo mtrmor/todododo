@@ -1,9 +1,9 @@
-import { ClockCountdown } from "phosphor-react-native";
+import { ArrowLeft, ClockCountdown } from "phosphor-react-native";
 import { Text, View } from "react-native";
 
 import { colors } from "@/platform";
-import { BackAction } from "@/modules/placeholder-screen/components/back-action/back-action";
 import { styles } from "@/modules/placeholder-screen/components/placeholder-card/styles";
+import { Button } from "@/platform/ui";
 
 type PlaceholderCardProps = { title: string; description: string; onBack: () => void };
 
@@ -21,7 +21,14 @@ export function PlaceholderCard({ title, description, onBack }: PlaceholderCardP
           {description}
         </Text>
       </View>
-      <BackAction onPress={onBack} />
+      <Button
+        accessibilityHint="Returns to your inbox"
+        icon={ArrowLeft}
+        onPress={onBack}
+        style={styles.backAction}
+      >
+        Back to Inbox
+      </Button>
     </View>
   );
 }

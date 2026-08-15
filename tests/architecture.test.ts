@@ -252,7 +252,29 @@ describe("architecture boundaries", () => {
     }
 
     expect(fs.existsSync(path.join(sourceRoot, "core"))).toBe(false);
+    expect(fs.existsSync(path.join(sourceRoot, "root", "ui"))).toBe(false);
 
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps the Platform UI kit isolated behind its public subpath", () => {
+    const uiRoot = path.join(sourceRoot, "platform", "ui");
+    const violations: string[] = [];
+
+    expect(fs.existsSync(uiRoot)).toBe(true);
+
+    for (const filePath of sourceFiles(uiRoot)) {
+      for (const specifier of importedSpecifiers(filePath)) {
+        if (/^@\/(?:modules|root|shared-state)(?:\/|$)/.test(specifier)) {
+          violations.push(
+            `${path.relative(projectRoot, filePath)} imports forbidden UI dependency ${specifier}`,
+          );
+        }
+      }
+    }
+
+    const platformBarrel = fs.readFileSync(path.join(sourceRoot, "platform", "index.ts"), "utf8");
+    expect(platformBarrel).not.toContain("platform/ui");
     expect(violations).toEqual([]);
   });
 
@@ -268,7 +290,7 @@ describe("architecture boundaries", () => {
       const moduleRoot = path.join(modulesRoot, moduleEntry.name);
       const rootComponents = fs.readdirSync(moduleRoot).filter((name) => name.endsWith(".tsx"));
 
-      for (const rootComponent of rootComponents) {
+      if (rootComponents.length > 0) {
         const rootStyles = path.join(moduleRoot, "styles.ts");
 
         if (!fs.existsSync(rootStyles)) {

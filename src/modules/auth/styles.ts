@@ -31,4 +31,5 @@ export const styles = StyleSheet.create({
   formContainer: { width: "100%", maxWidth: 420, gap: 31 },
   formHeadingGroup: { gap: 9 },
   formFields: { gap: 18 },
+  submitAction: { width: "100%" },
 });
