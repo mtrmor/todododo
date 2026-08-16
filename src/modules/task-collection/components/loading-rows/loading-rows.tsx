@@ -1,5 +1,5 @@
 import { View } from "react-native";
-import { styles } from "@/modules/task-list/components/loading-rows/styles";
+import { styles } from "@/modules/task-collection/components/loading-rows/styles";
 export function LoadingRows() {
   return (
     <View accessibilityLabel="Loading tasks" style={styles.container}>

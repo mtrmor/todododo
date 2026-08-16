@@ -1,13 +1,13 @@
 import { CalendarBlank, Check, CircleIcon } from "phosphor-react-native";
 import { Pressable, Text, View } from "react-native";
 import { colors, type TaskRecord } from "@/platform";
-import { useHovered } from "@/modules/task-list/components/task-row/hooks/use-hovered";
-import { styles } from "@/modules/task-list/components/task-row/styles";
-import { useTaskListController } from "@/modules/task-list/task-list-controller-context";
+import { useHovered } from "@/modules/task-collection/components/task-row/hooks/use-hovered";
+import { styles } from "@/modules/task-collection/components/task-row/styles";
+import { useInboxController } from "@/modules/task-collection/inbox-controller-context";
 import { useTaskDialogActions, useTaskMutation } from "@/shared-state";
 
 export function ConnectedTaskRow({ task }: { task: TaskRecord }) {
-  const taskListController = useTaskListController();
+  const inboxController = useInboxController();
   const { openTask } = useTaskDialogActions();
   const mutation = useTaskMutation(task.id);
   return (
@@ -16,7 +16,7 @@ export function ConnectedTaskRow({ task }: { task: TaskRecord }) {
       task={task}
       onOpen={() => openTask(task.id)}
       onToggle={() =>
-        void taskListController.setCompleted(task.id, !task.completed).catch(() => undefined)
+        void inboxController.setCompleted(task.id, !task.completed).catch(() => undefined)
       }
     />
   );

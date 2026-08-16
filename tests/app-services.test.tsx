@@ -13,7 +13,7 @@ vi.mock("@/platform/auth/auth-provider", () => ({ useAuth: () => mocks.auth }));
 
 // Vitest hoists the mock above these imports at transform time.
 // eslint-disable-next-line import/first
-import { useTaskListController } from "@/modules/task-list/task-list-controller-context";
+import { useInboxController } from "@/modules/task-collection/inbox-controller-context";
 // eslint-disable-next-line import/first
 import { AppServicesProvider } from "@/root/services/app-services-provider";
 // eslint-disable-next-line import/first
@@ -33,7 +33,7 @@ describe("AppServicesProvider", () => {
     expect(services.tasksStore).toBeDefined();
     expect(services.uiStore).toBeDefined();
     expect(services.taskInvalidationBus).toBeDefined();
-    expect(services.taskListController).toBeDefined();
+    expect(services.inboxController).toBeDefined();
     expect(services.searchController).toBeDefined();
     expect(services.sidebarController).toBeDefined();
     expect(services.taskDetailController).toBeDefined();
@@ -43,14 +43,14 @@ describe("AppServicesProvider", () => {
     const selections: {
       tasksStore: ReturnType<typeof useTaskStore>;
       uiStore: ReturnType<typeof useUiStore>;
-      taskListController: ReturnType<typeof useTaskListController>;
+      inboxController: ReturnType<typeof useInboxController>;
     }[] = [];
 
     function Probe() {
       selections.push({
         tasksStore: useTaskStore(),
         uiStore: useUiStore(),
-        taskListController: useTaskListController(),
+        inboxController: useInboxController(),
       });
       return null;
     }

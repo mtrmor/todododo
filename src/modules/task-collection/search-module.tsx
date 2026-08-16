@@ -7,10 +7,10 @@ import {
 } from "phosphor-react-native";
 import { FlatList, Text, View } from "react-native";
 
-import { SearchInput } from "@/modules/search/components/search-input/search-input";
-import { ConnectedSearchTaskRow } from "@/modules/search/components/search-task-row/search-task-row";
-import { useSearchModule } from "@/modules/search/hooks/use-search-module";
-import { styles } from "@/modules/search/styles";
+import { SearchInput } from "@/modules/task-collection/components/search-input/search-input";
+import { ConnectedSearchTaskRow } from "@/modules/task-collection/components/search-task-row/search-task-row";
+import { useSearchModule } from "@/modules/task-collection/hooks/use-search-module";
+import { searchStyles as styles } from "@/modules/task-collection/styles";
 import { Button, NoticeBanner, ScreenState } from "@/platform/ui";
 import { useTaskDialogActions } from "@/shared-state";
 

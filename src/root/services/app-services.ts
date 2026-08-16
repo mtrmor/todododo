@@ -1,7 +1,6 @@
-import { SearchController } from "@/modules/search/search-controller";
 import { SidebarController } from "@/modules/sidebar/sidebar-controller";
 import { TaskDetailController } from "@/modules/task-detail/task-detail-controller";
-import { TaskListController } from "@/modules/task-list/task-list-controller";
+import { TaskCollectionController } from "@/modules/task-collection/task-collection-controller";
 import { TaskInvalidationBus } from "@/shared-state/broadcast-bridge";
 import { TasksStore } from "@/shared-state/tasks-store";
 import { UiStore } from "@/shared-state/ui-store";
@@ -10,8 +9,8 @@ export type AppServices = Readonly<{
   tasksStore: TasksStore;
   uiStore: UiStore;
   taskInvalidationBus: TaskInvalidationBus;
-  taskListController: TaskListController;
-  searchController: SearchController;
+  inboxController: TaskCollectionController;
+  searchController: TaskCollectionController;
   sidebarController: SidebarController;
   taskDetailController: TaskDetailController;
 }>;
@@ -25,8 +24,23 @@ export function createAppServices(): AppServices {
     tasksStore,
     uiStore,
     taskInvalidationBus,
-    taskListController: new TaskListController(tasksStore, taskInvalidationBus),
-    searchController: new SearchController(tasksStore, taskInvalidationBus),
+    inboxController: new TaskCollectionController(tasksStore, taskInvalidationBus, {
+      collection: "inbox",
+      messages: {
+        load: "Tasks could not be loaded.",
+        loadMore: "More tasks could not be loaded.",
+        completion: "The task was not changed.",
+      },
+    }),
+    searchController: new TaskCollectionController(tasksStore, taskInvalidationBus, {
+      collection: "search",
+      searchable: true,
+      messages: {
+        load: "Search could not be loaded.",
+        loadMore: "More results could not be loaded.",
+        completion: "The task was not changed.",
+      },
+    }),
     sidebarController: new SidebarController(tasksStore, taskInvalidationBus),
     taskDetailController: new TaskDetailController(tasksStore, taskInvalidationBus),
   });

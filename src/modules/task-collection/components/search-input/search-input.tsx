@@ -2,7 +2,7 @@ import { MagnifyingGlass, X } from "phosphor-react-native";
 import { useRef } from "react";
 import { TextInput } from "react-native";
 
-import { styles } from "@/modules/search/components/search-input/styles";
+import { styles } from "@/modules/task-collection/components/search-input/styles";
 import { TextField } from "@/platform/ui";
 
 export function SearchInput({

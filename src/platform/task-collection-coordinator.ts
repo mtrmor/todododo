@@ -11,7 +11,7 @@ type CollectionState = Readonly<{
   nextCursor: string | null;
 }>;
 
-type CoordinatorApi = Readonly<{
+export type TaskCollectionApi = Readonly<{
   getTasks(options?: GetTasksOptions): Promise<TaskPage>;
   setTaskCompleted(taskId: string, completed: boolean): Promise<TaskRecord>;
 }>;
@@ -35,7 +35,7 @@ export type TaskCollectionMessages = Readonly<{
 }>;
 
 type TaskCollectionCoordinatorOptions<TTransaction> = Readonly<{
-  api: CoordinatorApi;
+  api: TaskCollectionApi;
   port: TaskCollectionPort<TTransaction>;
   messages: TaskCollectionMessages;
   searchable?: boolean;
@@ -49,7 +49,7 @@ function isOffline(): boolean {
 }
 
 export class TaskCollectionCoordinator<TTransaction> {
-  readonly #api: CoordinatorApi;
+  readonly #api: TaskCollectionApi;
   readonly #messages: TaskCollectionMessages;
   readonly #port: TaskCollectionPort<TTransaction>;
   readonly #publishInvalidation: () => void;

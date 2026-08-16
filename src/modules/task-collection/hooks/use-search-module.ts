@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useWindowDimensions } from "react-native";
-import { useSearchController } from "@/modules/search/search-controller-context";
+import { useSearchController } from "@/modules/task-collection/search-controller-context";
 import { useSearchTasks } from "@/shared-state";
 
 const SEARCH_DEBOUNCE_MS = 250;

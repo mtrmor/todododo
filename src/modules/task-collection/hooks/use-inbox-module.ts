@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { useWindowDimensions } from "react-native";
-import { useTaskListController } from "@/modules/task-list/task-list-controller-context";
+import { useInboxController } from "@/modules/task-collection/inbox-controller-context";
 import { useInboxTasks } from "@/shared-state";
 
-export function useTaskList() {
-  const taskListController = useTaskListController();
+export function useInboxModule() {
+  const inboxController = useInboxController();
   const { width } = useWindowDimensions();
   const { tasks, nextCursor, status, error, offline } = useInboxTasks();
-  useEffect(() => taskListController.connect(), [taskListController]);
+  useEffect(() => inboxController.connect(), [inboxController]);
   const message =
     error || offline
       ? offline
@@ -27,8 +27,8 @@ export function useTaskList() {
     refreshing: status === "refreshing",
     loadingMore: status === "loading-more",
     openTasks: tasks.filter((task) => !task.completed).length,
-    retry: () => void taskListController.load(tasks.length === 0 ? "initial" : "refresh"),
-    refresh: () => void taskListController.load("refresh"),
-    loadMore: () => void taskListController.loadMore(),
+    retry: () => void inboxController.load(tasks.length === 0 ? "initial" : "refresh"),
+    refresh: () => void inboxController.load("refresh"),
+    loadMore: () => void inboxController.loadMore(),
   };
 }

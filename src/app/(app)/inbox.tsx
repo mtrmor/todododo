@@ -1,5 +1,5 @@
-import { TaskListModule } from "@/modules/task-list";
+import { InboxModule } from "@/modules/task-collection";
 
 export default function InboxRoute() {
-  return <TaskListModule title="Inbox" />;
+  return <InboxModule title="Inbox" />;
 }

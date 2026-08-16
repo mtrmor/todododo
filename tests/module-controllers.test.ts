@@ -7,10 +7,12 @@ import type {
   TaskPage,
   TaskRecord,
 } from "@/domain/tasks";
-import { SearchController } from "@/modules/search/search-controller";
 import { SidebarController } from "@/modules/sidebar/sidebar-controller";
 import { TaskDetailController } from "@/modules/task-detail/task-detail-controller";
-import { TaskListController } from "@/modules/task-list/task-list-controller";
+import {
+  TaskCollectionController,
+  type TaskCollectionConfig,
+} from "@/modules/task-collection/task-collection-controller";
 import { TaskInvalidationBus, TasksStore } from "@/shared-state/internal";
 
 vi.mock("@/platform/lifecycle/active-refresh", () => ({
@@ -60,6 +62,25 @@ function collectionApi() {
 
 const noLifecycle = (_refresh: () => void) => vi.fn();
 
+const inboxConfig = {
+  collection: "inbox",
+  messages: {
+    load: "Tasks could not be loaded.",
+    loadMore: "More tasks could not be loaded.",
+    completion: "The task was not changed.",
+  },
+} satisfies TaskCollectionConfig;
+
+const searchConfig = {
+  collection: "search",
+  searchable: true,
+  messages: {
+    load: "Search could not be loaded.",
+    loadMore: "More results could not be loaded.",
+    completion: "The task was not changed.",
+  },
+} satisfies TaskCollectionConfig;
+
 describe("module-owned task controllers", () => {
   let invalidationBus: TaskInvalidationBus;
 
@@ -73,7 +94,13 @@ describe("module-owned task controllers", () => {
     const first = deferred<TaskPage>();
     api.getTasks.mockImplementationOnce(() => first.promise);
     const stopLifecycle = vi.fn();
-    const controller = new TaskListController(store, invalidationBus, api, () => stopLifecycle);
+    const controller = new TaskCollectionController(
+      store,
+      invalidationBus,
+      inboxConfig,
+      api,
+      () => stopLifecycle,
+    );
     const stop = controller.connect();
     const duplicate = controller.load("initial");
     expect(api.getTasks).toHaveBeenCalledTimes(1);
@@ -95,7 +122,13 @@ describe("module-owned task controllers", () => {
     store.setSummary({ open: 1, total: 1, completed: 0 });
     const api = collectionApi();
     api.setTaskCompleted.mockRejectedValueOnce(new Error("offline"));
-    const controller = new TaskListController(store, invalidationBus, api, noLifecycle);
+    const controller = new TaskCollectionController(
+      store,
+      invalidationBus,
+      inboxConfig,
+      api,
+      noLifecycle,
+    );
     const request = controller.setCompleted("one", true);
     expect(store.getTask("one")?.completed).toBe(true);
     await expect(request).rejects.toThrow("offline");
@@ -110,7 +143,13 @@ describe("module-owned task controllers", () => {
     api.getTasks
       .mockImplementationOnce(() => stale.promise)
       .mockResolvedValueOnce({ items: [task("fresh")], nextCursor: null });
-    const controller = new SearchController(store, invalidationBus, api, noLifecycle);
+    const controller = new TaskCollectionController(
+      store,
+      invalidationBus,
+      searchConfig,
+      api,
+      noLifecycle,
+    );
     controller.setQuery("old");
     controller.setQuery("new");
     await controller.load("initial");
@@ -128,7 +167,13 @@ describe("module-owned task controllers", () => {
     api.getTasks
       .mockImplementationOnce(() => stale.promise)
       .mockResolvedValueOnce({ items: [task("fresh")], nextCursor: null });
-    const controller = new TaskListController(store, invalidationBus, api, noLifecycle);
+    const controller = new TaskCollectionController(
+      store,
+      invalidationBus,
+      inboxConfig,
+      api,
+      noLifecycle,
+    );
     const stop = controller.connect();
     invalidationBus.publish();
     await controller.load("refresh");

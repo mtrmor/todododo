@@ -1,19 +1,19 @@
 import { ArrowClockwise, ListChecks, Plus, WarningCircle, WifiSlash } from "phosphor-react-native";
 import { FlatList, View } from "react-native";
 
-import { LoadingRows } from "@/modules/task-list/components/loading-rows/loading-rows";
-import { TaskListHeader } from "@/modules/task-list/components/task-list-header/task-list-header";
-import { ConnectedTaskRow } from "@/modules/task-list/components/task-row/task-row";
-import { useTaskList } from "@/modules/task-list/hooks/use-task-list";
-import { styles } from "@/modules/task-list/styles";
+import { LoadingRows } from "@/modules/task-collection/components/loading-rows/loading-rows";
+import { TaskListHeader } from "@/modules/task-collection/components/task-list-header/task-list-header";
+import { ConnectedTaskRow } from "@/modules/task-collection/components/task-row/task-row";
+import { useInboxModule } from "@/modules/task-collection/hooks/use-inbox-module";
+import { inboxStyles as styles } from "@/modules/task-collection/styles";
 import { Button, NoticeBanner, ScreenState } from "@/platform/ui";
 import { useTaskDialogActions } from "@/shared-state";
 
-export type TaskListModuleProps = { title?: string };
+export type InboxModuleProps = { title?: string };
 
-export function TaskListModule({ title = "Inbox" }: TaskListModuleProps) {
+export function InboxModule({ title = "Inbox" }: InboxModuleProps) {
   const { openCreateTask } = useTaskDialogActions();
-  const list = useTaskList();
+  const list = useInboxModule();
   return (
     <View style={styles.screen}>
       <View style={[styles.content, list.isCompact ? styles.contentCompact : styles.contentWide]}>

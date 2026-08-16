@@ -1,5 +1,5 @@
 import { Text, View } from "react-native";
-import { styles } from "@/modules/task-list/components/task-list-header/styles";
+import { styles } from "@/modules/task-collection/components/task-list-header/styles";
 export function TaskListHeader({
   title,
   openTasks,

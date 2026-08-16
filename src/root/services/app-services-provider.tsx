@@ -1,9 +1,9 @@
 import { useState, type PropsWithChildren } from "react";
 
-import { SearchControllerProvider } from "@/modules/search/search-controller-context";
 import { SidebarControllerProvider } from "@/modules/sidebar/sidebar-controller-context";
 import { TaskDetailControllerProvider } from "@/modules/task-detail/task-detail-controller-context";
-import { TaskListControllerProvider } from "@/modules/task-list/task-list-controller-context";
+import { InboxControllerProvider } from "@/modules/task-collection/inbox-controller-context";
+import { SearchControllerProvider } from "@/modules/task-collection/search-controller-context";
 import { createAppServices } from "@/root/services/app-services";
 import { useAuth } from "@/platform/auth/auth-provider";
 import { SharedStateProvider } from "@/shared-state/store-context";
@@ -22,7 +22,7 @@ function ScopedAppServicesProvider({ children }: PropsWithChildren) {
 
   return (
     <SharedStateProvider tasksStore={services.tasksStore} uiStore={services.uiStore}>
-      <TaskListControllerProvider value={services.taskListController}>
+      <InboxControllerProvider value={services.inboxController}>
         <SearchControllerProvider value={services.searchController}>
           <SidebarControllerProvider value={services.sidebarController}>
             <TaskDetailControllerProvider value={services.taskDetailController}>
@@ -30,7 +30,7 @@ function ScopedAppServicesProvider({ children }: PropsWithChildren) {
             </TaskDetailControllerProvider>
           </SidebarControllerProvider>
         </SearchControllerProvider>
-      </TaskListControllerProvider>
+      </InboxControllerProvider>
     </SharedStateProvider>
   );
 }
