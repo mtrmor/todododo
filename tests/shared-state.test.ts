@@ -1,10 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  INBOX_COLLECTION_KEY,
-  searchCollectionKey,
   useInboxTasks,
   useTask,
   useTaskDialogActions,
@@ -32,28 +30,38 @@ function task(id: string, overrides: Partial<TaskRecord> = {}): TaskRecord {
   };
 }
 
-class CounterStore extends ExternalStore<Readonly<{ count: number }>> {
+class CounterStore extends ExternalStore<Readonly<{ count: number; stable: { value: string } }>> {
   constructor() {
-    super(Object.freeze({ count: 0 }));
+    super({ count: 0, stable: { value: "same" } });
   }
 
   publishSame(): void {
     this.publish(this.getSnapshot());
   }
 
+  updateSame(): void {
+    this.update((draft) => {
+      draft.count = 0;
+    });
+  }
+
   increment(): void {
-    this.publish(Object.freeze({ count: this.getSnapshot().count + 1 }));
+    this.update((draft) => {
+      draft.count += 1;
+    });
   }
 }
 
 describe("ExternalStore", () => {
-  it("keeps identity for same-value publishes and notifies synchronously", () => {
+  it("uses Mutative structural sharing and notifies synchronously", () => {
     const store = new CounterStore();
     const initial = store.getSnapshot();
+    const stable = initial.stable;
     const calls: string[] = [];
     store.subscribe(() => calls.push("listener"));
 
     store.publishSame();
+    store.updateSame();
     expect(store.getSnapshot()).toBe(initial);
     expect(calls).toEqual([]);
 
@@ -61,7 +69,8 @@ describe("ExternalStore", () => {
     store.increment();
     calls.push("after");
     expect(calls).toEqual(["before", "listener", "after"]);
-    expect(Object.isFrozen(store.getSnapshot())).toBe(true);
+    expect(store.getSnapshot().stable).toBe(stable);
+    expect(Object.isFrozen(store.getSnapshot())).toBe(false);
   });
 
   it("supports unsubscribe and a permanent SSR snapshot", () => {
@@ -74,7 +83,7 @@ describe("ExternalStore", () => {
 
     expect(listener).not.toHaveBeenCalled();
     expect(store.getServerSnapshot()).toBe(serverSnapshot);
-    expect(serverSnapshot).toEqual({ count: 0 });
+    expect(serverSnapshot.count).toBe(0);
   });
 });
 
@@ -111,70 +120,71 @@ describe("TasksStore", () => {
     store = new TasksStore();
   });
 
-  it("normalizes entities, deduplicates pagination and preserves entity identity", () => {
+  it("stores direct tasks, deduplicates pagination and preserves equal task identity", () => {
     const first = task("one");
-    store.replaceCollection(INBOX_COLLECTION_KEY, [first], "cursor-1");
+    store.replaceCollection("inbox", [first], "cursor-1");
     const entity = store.getTask("one");
-    store.appendCollection(INBOX_COLLECTION_KEY, [task("one"), task("two")], null);
+    store.appendCollection("inbox", [task("one"), task("two")], null);
 
-    expect(store.getCollection(INBOX_COLLECTION_KEY).ids).toEqual(["one", "two"]);
+    expect(store.getCollection("inbox").tasks.map((item) => item.id)).toEqual(["one", "two"]);
     expect(store.getTask("one")).toBe(entity);
-    expect(Object.isFrozen(store.getSnapshot())).toBe(true);
-    expect(Object.isFrozen(store.getSnapshot().byId)).toBe(true);
+    expect(Object.isFrozen(store.getSnapshot())).toBe(false);
   });
 
-  it("evicts the previous search collection while retaining Inbox", () => {
-    const oldSearch = searchCollectionKey("old");
-    const nextSearch = searchCollectionKey("next");
-    store.replaceCollection(INBOX_COLLECTION_KEY, [task("inbox")], null);
-    store.activateSearch(oldSearch);
-    store.replaceCollection(oldSearch, [task("old")], null);
-    store.activateSearch(nextSearch);
+  it("keeps only the active Search query while retaining Inbox", () => {
+    store.replaceCollection("inbox", [task("inbox")], null);
+    store.activateSearch("old");
+    store.replaceCollection("search", [task("old")], null);
+    store.activateSearch(" next ");
 
-    expect(store.getSnapshot().collections[INBOX_COLLECTION_KEY]).toBeDefined();
-    expect(store.getSnapshot().collections[oldSearch]).toBeUndefined();
-    expect(store.getActiveSearchKey()).toBe(nextSearch);
+    expect(store.getSnapshot().inbox.tasks.map((item) => item.id)).toEqual(["inbox"]);
+    expect(store.getSnapshot().search.query).toBe("next");
+    expect(store.getSnapshot().search.tasks).toEqual([]);
   });
 
-  it("removes an entity from every collection and tracks pending mutations", () => {
-    const searchKey = searchCollectionKey("one");
-    store.replaceCollection(INBOX_COLLECTION_KEY, [task("one"), task("two")], null);
-    store.activateSearch(searchKey);
-    store.replaceCollection(searchKey, [task("one")], null);
+  it("updates and removes a task from Inbox, Search and Detail", () => {
+    store.replaceCollection("inbox", [task("one"), task("two")], null);
+    store.activateSearch("one");
+    store.replaceCollection("search", [task("one")], null);
+    store.setDetail(task("one"));
+    store.patchTask("one", { title: "Changed" });
+
+    expect(store.getSnapshot().inbox.tasks[0].title).toBe("Changed");
+    expect(store.getSnapshot().search.tasks[0].title).toBe("Changed");
+    expect(store.getSnapshot().detail?.title).toBe("Changed");
+
     store.setPending("one", "delete");
     store.removeTask("one");
-
     expect(store.getTask("one")).toBeNull();
-    expect(store.getCollection(INBOX_COLLECTION_KEY).ids).toEqual(["two"]);
-    expect(store.getCollection(searchKey).ids).toEqual([]);
+    expect(store.getCollection("inbox").tasks.map((item) => item.id)).toEqual(["two"]);
+    expect(store.getCollection("search").tasks).toEqual([]);
     expect(store.getSnapshot().pendingById.one).toBeUndefined();
   });
 
-  it("uses structural sharing for unrelated slices and same-value entity upserts", () => {
-    store.replaceCollection(INBOX_COLLECTION_KEY, [task("one")], null);
+  it("uses structural sharing for unrelated slices and same-value upserts", () => {
+    store.replaceCollection("inbox", [task("one")], null);
     const initial = store.getSnapshot();
     store.upsertTask(task("one"));
     expect(store.getSnapshot()).toBe(initial);
 
     store.setSummary({ open: 1, total: 1, completed: 0 });
     const next = store.getSnapshot();
-    expect(next.byId).toBe(initial.byId);
-    expect(next.collections).toBe(initial.collections);
+    expect(next.inbox).toBe(initial.inbox);
+    expect(next.search).toBe(initial.search);
     expect(next.summary).not.toBe(initial.summary);
   });
 
-  it("does not overwrite an optimistic entity with a stale collection refresh", () => {
-    store.replaceCollection(INBOX_COLLECTION_KEY, [task("one")], null);
+  it("does not overwrite an optimistic task with a stale refresh", () => {
+    store.replaceCollection("inbox", [task("one")], null);
     store.setPending("one", "complete");
     store.patchTask("one", { completed: true, completedAt: "2026-08-15T09:00:00.000Z" });
 
-    store.replaceCollection(INBOX_COLLECTION_KEY, [task("one", { completed: false })], null);
-
+    store.replaceCollection("inbox", [task("one", { completed: false })], null);
     expect(store.getTask("one")?.completed).toBe(true);
   });
 
-  it("clears every task slice for logout or user changes", () => {
-    store.replaceCollection(INBOX_COLLECTION_KEY, [task("one")], null);
+  it("clears every task slice", () => {
+    store.replaceCollection("inbox", [task("one")], null);
     store.setPending("one", "update");
     store.setSummary({ open: 1, total: 1, completed: 0 });
     store.clear();
@@ -183,23 +193,10 @@ describe("TasksStore", () => {
     expect(store.getTask("one")).toBeNull();
   });
 
-  it("invalidates stale reads on mutation and user switches", () => {
-    store.bindUser("user-a");
-    const initialRead = store.captureReadToken();
-    store.invalidateReads();
-    expect(store.isReadTokenCurrent(initialRead)).toBe(false);
-
-    const nextRead = store.captureReadToken();
-    store.bindUser("user-b");
-    expect(store.isReadTokenCurrent(nextRead)).toBe(false);
-    expect(store.getSnapshot()).toBe(store.getServerSnapshot());
-  });
-
   it("owns optimistic completion as a reversible transaction", () => {
-    store.bindUser("user-a");
-    store.replaceCollection(INBOX_COLLECTION_KEY, [task("one")], null);
+    store.replaceCollection("inbox", [task("one")], null);
     store.setSummary({ open: 1, total: 1, completed: 0 });
-    const transaction = store.beginCompletion("one", true, INBOX_COLLECTION_KEY);
+    const transaction = store.beginCompletion("one", true, "inbox");
 
     expect(transaction).not.toBeNull();
     expect(store.getTask("one")?.completed).toBe(true);
@@ -228,7 +225,7 @@ describe("Shared State selectors", () => {
     return create(createElement(SharedStateProvider, { tasksStore, uiStore }, child));
   }
 
-  it("does not rerender an Inbox subscriber for unrelated entity or summary changes", () => {
+  it("does not rerender Inbox for unrelated task or summary changes", () => {
     let renders = 0;
     const selections: TaskCollectionView[] = [];
 
@@ -242,21 +239,19 @@ describe("Shared State selectors", () => {
       renderer = renderWithState(createElement(Probe));
     });
     const initialView = selections[0];
-    expect(renders).toBe(1);
-
     act(() => tasksStore.setSummary({ open: 1, total: 1, completed: 0 }));
     act(() => tasksStore.upsertTask(task("not-in-inbox")));
     expect(renders).toBe(1);
     expect(selections.at(-1)).toBe(initialView);
 
-    act(() => tasksStore.replaceCollection(INBOX_COLLECTION_KEY, [task("one")], null));
+    act(() => tasksStore.replaceCollection("inbox", [task("one")], null));
     expect(renders).toBe(2);
     expect(selections.at(-1)?.tasks.map((item) => item.id)).toEqual(["one"]);
     act(() => renderer?.unmount());
   });
 
-  it("rerenders a selected entity exactly once when that entity changes", () => {
-    tasksStore.upsertTask(task("one"));
+  it("rerenders a selected task exactly once when that task changes", () => {
+    tasksStore.replaceCollection("inbox", [task("one")], null);
     let renders = 0;
     const selections: (TaskRecord | null)[] = [];
 
@@ -280,7 +275,7 @@ describe("Shared State selectors", () => {
     act(() => renderer?.unmount());
   });
 
-  it("routes dialog actions to the UiStore supplied by the provider", () => {
+  it("routes dialog actions to the supplied UiStore", () => {
     let actions: ReturnType<typeof useTaskDialogActions> | null = null;
     let selectedStore: UiStore | null = null;
 
@@ -294,7 +289,6 @@ describe("Shared State selectors", () => {
       renderer = renderWithState(createElement(Probe));
     });
     act(() => actions?.openTask("task-1"));
-
     expect(selectedStore).toBe(uiStore);
     expect(uiStore.getSnapshot().taskDialog).toEqual({ mode: "edit", taskId: "task-1" });
     act(() => renderer?.unmount());

@@ -22,8 +22,13 @@ export class SidebarController {
   connect(): () => void {
     void this.load("initial");
     const refresh = () => void this.load("refresh");
+    const invalidate = () => {
+      this.#request?.controller.abort();
+      this.#request = null;
+      void this.load("refresh");
+    };
     const stopActive = this.subscribeToRefresh(refresh);
-    const stopInvalidation = this.invalidationBus.subscribe(refresh);
+    const stopInvalidation = this.invalidationBus.subscribe(invalidate);
     return () => {
       stopActive();
       stopInvalidation();
@@ -38,14 +43,13 @@ export class SidebarController {
     }
 
     const controller = new AbortController();
-    const token = this.store.captureReadToken();
     const status =
       mode === "initial" && this.store.getSummary().status === "idle" ? "loading" : "refreshing";
     this.store.beginSummary(status);
     const promise = this.api
       .getTaskSummary({ signal: controller.signal })
       .then((summary) => {
-        if (!controller.signal.aborted && this.store.isReadTokenCurrent(token)) {
+        if (!controller.signal.aborted) {
           const hasPendingCompletion = Object.values(this.store.getSnapshot().pendingById).includes(
             "complete",
           );
@@ -60,8 +64,7 @@ export class SidebarController {
       .catch((error: unknown) => {
         if (
           !isAbortError(error) &&
-          !controller.signal.aborted &&
-          this.store.isReadTokenCurrent(token)
+          !controller.signal.aborted
         ) {
           this.store.failSummary(
             getErrorMessage(error, "Task progress is unavailable."),

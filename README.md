@@ -45,13 +45,15 @@ The complete direct-import matrix is:
 - `src/app/` contains Expo Router routes, providers, and module composition.
 - `src/modules/` contains independent visible UI modules. A module may import
   Platform, Shared State, Domain, and packages, but never another module.
-- `src/platform/` owns API transports, auth, lifecycle, theme, shared types, and
-  the reusable UI kit exported through `@/platform/ui`. It depends only on
-  Domain and external packages; UI is intentionally not re-exported from the
-  top-level `@/platform` barrel.
-- `src/root/` composes Platform with Shared State and owns root providers.
-- `src/shared-state/` is a synchronous `useSyncExternalStore` UI bus. It has no
-  Platform, network, Supabase, or database imports.
+- `src/platform/` owns API transports, auth, lifecycle, generic request
+  coordination, theme, shared types, and the reusable UI kit exported through
+  `@/platform/ui`. It depends only on Domain and external packages; UI is
+  intentionally not re-exported from the top-level `@/platform` barrel.
+- `src/root/` composes Platform with Shared State and recreates the service graph
+  when the authenticated user changes.
+- `src/shared-state/` is a synchronous `useSyncExternalStore` UI bus backed by
+  Mutative. Task state is stored as direct Inbox, Search, Detail, Summary, and
+  pending slices. It has no Platform, network, Supabase, or database imports.
 - `src/server/` contains the allowlisted same-origin API proxy.
 - `supabase/functions/todododo-api/` owns auth, CSRF, validation, and task CRUD.
 - `supabase/migrations/` and `supabase/tests/database/` own the Postgres contract.

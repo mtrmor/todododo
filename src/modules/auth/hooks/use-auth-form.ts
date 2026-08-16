@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { TextInput, useWindowDimensions } from "react-native";
+import { useMutative } from "use-mutative";
 
 import { getErrorMessage, useAuth } from "@/platform";
 
@@ -17,7 +18,7 @@ export function useAuthForm(variant: "sign-in" | "sign-up") {
   const [passwordConfirmation, setPasswordConfirmationValue] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [fieldErrors, setFieldErrors] = useMutative<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const isSignUp = variant === "sign-up";
 
@@ -35,7 +36,9 @@ export function useAuthForm(variant: "sign-in" | "sign-up") {
     setter(value);
 
     if (fieldErrors[field]) {
-      setFieldErrors((current) => ({ ...current, [field]: undefined }));
+      setFieldErrors((draft) => {
+        delete draft[field];
+      });
     }
   }
 

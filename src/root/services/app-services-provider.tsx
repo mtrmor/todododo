@@ -5,17 +5,27 @@ import { SidebarControllerProvider } from "@/modules/sidebar/sidebar-controller-
 import { TaskDetailControllerProvider } from "@/modules/task-detail/task-detail-controller-context";
 import { TaskListControllerProvider } from "@/modules/task-list/task-list-controller-context";
 import { createAppServices } from "@/root/services/app-services";
+import { useAuth } from "@/platform/auth/auth-provider";
 import { SharedStateProvider } from "@/shared-state/store-context";
 
 export function AppServicesProvider({ children }: PropsWithChildren) {
+  const { status, user } = useAuth();
+  const scopeKey = status === "authenticated" && user ? `user:${user.id}` : "anonymous";
+
+  return (
+    <ScopedAppServicesProvider key={scopeKey}>{children}</ScopedAppServicesProvider>
+  );
+}
+
+function ScopedAppServicesProvider({ children }: PropsWithChildren) {
   const [services] = useState(createAppServices);
 
   return (
     <SharedStateProvider tasksStore={services.tasksStore} uiStore={services.uiStore}>
-      <TaskListControllerProvider controller={services.taskListController}>
-        <SearchControllerProvider controller={services.searchController}>
-          <SidebarControllerProvider controller={services.sidebarController}>
-            <TaskDetailControllerProvider controller={services.taskDetailController}>
+      <TaskListControllerProvider value={services.taskListController}>
+        <SearchControllerProvider value={services.searchController}>
+          <SidebarControllerProvider value={services.sidebarController}>
+            <TaskDetailControllerProvider value={services.taskDetailController}>
               {children}
             </TaskDetailControllerProvider>
           </SidebarControllerProvider>

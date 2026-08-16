@@ -193,6 +193,19 @@ function canImport(
 }
 
 describe("architecture boundaries", () => {
+  it("keeps Shared State independent from Platform", () => {
+    const violations = sourceFiles(path.join(sourceRoot, "shared-state")).flatMap((filePath) =>
+      importedSpecifiers(filePath)
+        .filter((specifier) => /^@\/platform(?:\/|$)/.test(specifier))
+        .map(
+          (specifier) =>
+            `${path.relative(projectRoot, filePath)} imports Platform via ${specifier}`,
+        ),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
   it("enforces the application dependency graph", () => {
     const violations: string[] = [];
 

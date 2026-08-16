@@ -1,3 +1,5 @@
+import { create, type Draft } from "mutative";
+
 export type StoreListener = () => void;
 
 export abstract class ExternalStore<TSnapshot extends object> {
@@ -29,6 +31,15 @@ export abstract class ExternalStore<TSnapshot extends object> {
       listener();
     }
     return true;
+  }
+
+  protected update(recipe: (draft: Draft<TSnapshot>) => void): boolean {
+    return this.publish(
+      create(this.#snapshot, recipe, {
+        strict: true,
+        enableAutoFreeze: false,
+      }),
+    );
   }
 
   protected resetSnapshot(): boolean {

@@ -1,7 +1,8 @@
 import { ExternalStore } from "@/shared-state/external-store";
 import {
-  INBOX_COLLECTION_KEY,
+  normalizeSearchQuery,
   type TaskCollection,
+  type TaskCollectionKind,
   type TaskCollectionStatus,
   type TaskMutationKind,
   type TaskRecord,
@@ -10,46 +11,25 @@ import {
   type TasksSnapshot,
 } from "@/shared-state/model";
 
-const EMPTY_IDS: readonly string[] = Object.freeze([]);
-const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
-const EMPTY_SUMMARY: TaskSummary = Object.freeze({ open: 0, total: 0, completed: 0 });
-const EMPTY_SUMMARY_STATE: TaskSummaryState = Object.freeze({
-  data: EMPTY_SUMMARY,
-  status: "idle",
-  error: null,
-  offline: false,
-});
-const SERVER_TASKS_SNAPSHOT: TasksSnapshot = Object.freeze({
-  byId: EMPTY_RECORD,
-  collections: EMPTY_RECORD,
-  summary: EMPTY_SUMMARY_STATE,
-  pendingById: EMPTY_RECORD,
-});
+const EMPTY_SUMMARY: TaskSummary = { open: 0, total: 0, completed: 0 };
 
-export type TasksReadToken = Readonly<{
-  userGeneration: number;
-  readGeneration: number;
-}>;
+function emptyCollection(status: TaskCollectionStatus = "idle"): TaskCollection {
+  return { tasks: [], nextCursor: null, status, error: null, offline: false };
+}
+
+const SERVER_TASKS_SNAPSHOT: TasksSnapshot = {
+  inbox: emptyCollection(),
+  search: { ...emptyCollection(), query: "" },
+  detail: null,
+  summary: { data: EMPTY_SUMMARY, status: "idle", error: null, offline: false },
+  pendingById: {},
+};
 
 export type CompletionTransaction = Readonly<{
   task: TaskRecord;
   summary: TaskSummaryState;
-  sourceCollectionKey: string;
+  source: TaskCollectionKind;
 }>;
-
-function emptyCollection(status: TaskCollectionStatus = "idle"): TaskCollection {
-  return Object.freeze({
-    ids: EMPTY_IDS,
-    nextCursor: null,
-    status,
-    error: null,
-    offline: false,
-  });
-}
-
-function freezeTask(task: TaskRecord): TaskRecord {
-  return Object.isFrozen(task) ? task : Object.freeze({ ...task });
-}
 
 function taskEquals(left: TaskRecord, right: TaskRecord): boolean {
   return (
@@ -64,154 +44,300 @@ function taskEquals(left: TaskRecord, right: TaskRecord): boolean {
   );
 }
 
-function sameIds(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((id, index) => id === right[index]);
+function sameTasks(left: readonly TaskRecord[], right: readonly TaskRecord[]): boolean {
+  return left.length === right.length && left.every((task, index) => task === right[index]);
 }
 
-function mergeEntities(
-  current: Readonly<Record<string, TaskRecord>>,
-  tasks: readonly TaskRecord[],
-  pendingById?: Readonly<Record<string, TaskMutationKind>>,
-): Readonly<Record<string, TaskRecord>> {
-  let next: Record<string, TaskRecord> | null = null;
+function replaceTask(tasks: TaskRecord[], incoming: TaskRecord): void {
+  const index = tasks.findIndex((task) => task.id === incoming.id);
 
-  for (const incoming of tasks) {
-    const existing = current[incoming.id];
-
-    if (existing && pendingById?.[incoming.id]) {
-      continue;
-    }
-
-    if (existing && taskEquals(existing, incoming)) {
-      continue;
-    }
-
-    next ??= { ...current };
-    next[incoming.id] = freezeTask(incoming);
+  if (index >= 0 && !taskEquals(tasks[index], incoming)) {
+    tasks[index] = incoming;
   }
-
-  return next ? Object.freeze(next) : current;
 }
 
 export class TasksStore extends ExternalStore<TasksSnapshot> {
-  #activeSearchKey: string | null = null;
-  #boundUserId: string | null = null;
-  #userGeneration = 0;
-  #readGeneration = 0;
-
   constructor() {
     super(SERVER_TASKS_SNAPSHOT);
   }
 
   getTask(taskId: string): TaskRecord | null {
-    return this.getSnapshot().byId[taskId] ?? null;
+    const snapshot = this.getSnapshot();
+    return (
+      (snapshot.detail?.id === taskId ? snapshot.detail : null) ??
+      snapshot.inbox.tasks.find((task) => task.id === taskId) ??
+      snapshot.search.tasks.find((task) => task.id === taskId) ??
+      null
+    );
   }
 
-  getCollection(key: string): TaskCollection {
-    return this.getSnapshot().collections[key] ?? emptyCollection();
+  getCollection(kind: TaskCollectionKind): TaskCollection {
+    return this.getSnapshot()[kind];
   }
 
   getSummary(): TaskSummaryState {
     return this.getSnapshot().summary;
   }
 
-  getActiveSearchKey(): string | null {
-    return this.#activeSearchKey;
-  }
+  activateSearch(query: string): void {
+    const normalized = normalizeSearchQuery(query);
 
-  bindUser(userId: string | null): void {
-    if (this.#boundUserId === userId) {
+    if (this.getSnapshot().search.query === normalized) {
       return;
     }
 
-    this.#boundUserId = userId;
-    this.#userGeneration += 1;
-    this.#readGeneration += 1;
-    this.clear();
-  }
-
-  releaseUser(userId: string): void {
-    if (this.#boundUserId === userId) {
-      this.bindUser(null);
-    }
-  }
-
-  captureReadToken(): TasksReadToken {
-    return Object.freeze({
-      userGeneration: this.#userGeneration,
-      readGeneration: this.#readGeneration,
+    this.update((draft) => {
+      draft.search.tasks = [];
+      draft.search.nextCursor = null;
+      draft.search.status = "idle";
+      draft.search.error = null;
+      draft.search.offline = false;
+      draft.search.query = normalized;
     });
   }
 
-  isReadTokenCurrent(token: TasksReadToken): boolean {
-    return (
-      token.userGeneration === this.#userGeneration && token.readGeneration === this.#readGeneration
-    );
-  }
+  beginCollection(
+    kind: TaskCollectionKind,
+    status: "loading" | "refreshing" | "loading-more",
+  ): void {
+    const current = this.getCollection(kind);
 
-  captureUserGeneration(): number {
-    return this.#userGeneration;
-  }
-
-  isUserGenerationCurrent(generation: number): boolean {
-    return generation === this.#userGeneration;
-  }
-
-  invalidateReads(): void {
-    this.#readGeneration += 1;
-    const snapshot = this.getSnapshot();
-    let collectionsChanged = false;
-    const collections = Object.fromEntries(
-      Object.entries(snapshot.collections).map(([key, collection]) => {
-        if (
-          collection.status === "idle" ||
-          (collection.status === "ready" && collection.error === null && !collection.offline)
-        ) {
-          return [key, collection];
-        }
-
-        collectionsChanged = true;
-        return [
-          key,
-          Object.freeze({
-            ...collection,
-            status: "ready" as const,
-            error: null,
-            offline: false,
-          }),
-        ];
-      }),
-    );
-    const summaryChanged =
-      snapshot.summary.status !== "idle" &&
-      (snapshot.summary.status !== "ready" ||
-        snapshot.summary.error !== null ||
-        snapshot.summary.offline);
-
-    if (!collectionsChanged && !summaryChanged) {
+    if (current.status === status && current.error === null && !current.offline) {
       return;
     }
 
-    this.publish(
-      Object.freeze({
-        ...snapshot,
-        collections: collectionsChanged ? Object.freeze(collections) : snapshot.collections,
-        summary: summaryChanged
-          ? Object.freeze({
-              ...snapshot.summary,
-              status: "ready" as const,
-              error: null,
-              offline: false,
-            })
-          : snapshot.summary,
-      }),
-    );
+    this.update((draft) => {
+      draft[kind].status = status;
+      draft[kind].error = null;
+      draft[kind].offline = false;
+    });
+  }
+
+  replaceCollection(
+    kind: TaskCollectionKind,
+    tasks: readonly TaskRecord[],
+    nextCursor: string | null,
+  ): void {
+    const snapshot = this.getSnapshot();
+    const current = snapshot[kind];
+    const reconciled = tasks.map((incoming) => {
+      const existing = this.getTask(incoming.id);
+      return existing && (snapshot.pendingById[incoming.id] || taskEquals(existing, incoming))
+        ? existing
+        : incoming;
+    });
+
+    if (
+      sameTasks(current.tasks, reconciled) &&
+      current.nextCursor === nextCursor &&
+      current.status === "ready" &&
+      current.error === null &&
+      !current.offline
+    ) {
+      return;
+    }
+
+    this.update((draft) => {
+      draft[kind].tasks = reconciled;
+      draft[kind].nextCursor = nextCursor;
+      draft[kind].status = "ready";
+      draft[kind].error = null;
+      draft[kind].offline = false;
+
+      for (const task of reconciled) {
+        if (snapshot.pendingById[task.id]) {
+          continue;
+        }
+
+        if (kind !== "inbox") {
+          replaceTask(draft.inbox.tasks, task);
+        }
+
+        if (kind !== "search") {
+          replaceTask(draft.search.tasks, task);
+        }
+
+        if (draft.detail?.id === task.id && !taskEquals(draft.detail, task)) {
+          draft.detail = task;
+        }
+      }
+    });
+  }
+
+  appendCollection(
+    kind: TaskCollectionKind,
+    tasks: readonly TaskRecord[],
+    nextCursor: string | null,
+  ): void {
+    const snapshot = this.getSnapshot();
+    const current = snapshot[kind];
+    const nextTasks = [...current.tasks];
+
+    for (const incoming of tasks) {
+      const index = nextTasks.findIndex((task) => task.id === incoming.id);
+      const existing = this.getTask(incoming.id);
+      const task =
+        existing && (snapshot.pendingById[incoming.id] || taskEquals(existing, incoming))
+          ? existing
+          : incoming;
+
+      if (index < 0) {
+        nextTasks.push(task);
+      } else if (nextTasks[index] !== task) {
+        nextTasks[index] = task;
+      }
+    }
+
+    if (
+      sameTasks(current.tasks, nextTasks) &&
+      current.nextCursor === nextCursor &&
+      current.status === "ready" &&
+      current.error === null &&
+      !current.offline
+    ) {
+      return;
+    }
+
+    this.replaceCollection(kind, nextTasks, nextCursor);
+  }
+
+  failCollection(kind: TaskCollectionKind, error: string, offline: boolean): void {
+    this.update((draft) => {
+      draft[kind].status = "error";
+      draft[kind].error = error;
+      draft[kind].offline = offline;
+    });
+  }
+
+  clearCollectionError(kind: TaskCollectionKind): void {
+    const current = this.getCollection(kind);
+
+    if (current.error === null && !current.offline) {
+      return;
+    }
+
+    this.update((draft) => {
+      draft[kind].status = "ready";
+      draft[kind].error = null;
+      draft[kind].offline = false;
+    });
+  }
+
+  settleCollection(kind: TaskCollectionKind): void {
+    const current = this.getCollection(kind);
+
+    if (current.status === "ready" && current.error === null && !current.offline) {
+      return;
+    }
+
+    this.update((draft) => {
+      draft[kind].status = "ready";
+      draft[kind].error = null;
+      draft[kind].offline = false;
+    });
+  }
+
+  setDetail(task: TaskRecord | null): void {
+    const current = this.getSnapshot().detail;
+
+    if (current === task || (current && task && taskEquals(current, task))) {
+      return;
+    }
+
+    this.update((draft) => {
+      draft.detail = task;
+    });
+  }
+
+  upsertTask(task: TaskRecord): void {
+    this.update((draft) => {
+      replaceTask(draft.inbox.tasks, task);
+      replaceTask(draft.search.tasks, task);
+
+      if (draft.detail?.id === task.id) {
+        draft.detail = task;
+      }
+    });
+  }
+
+  prependToInbox(task: TaskRecord): void {
+    this.update((draft) => {
+      draft.inbox.tasks = [task, ...draft.inbox.tasks.filter((current) => current.id !== task.id)];
+      replaceTask(draft.search.tasks, task);
+
+      if (draft.detail?.id === task.id) {
+        draft.detail = task;
+      }
+    });
+  }
+
+  patchTask(taskId: string, patch: Partial<TaskRecord>): TaskRecord | null {
+    const current = this.getTask(taskId);
+
+    if (!current) {
+      return null;
+    }
+
+    this.update((draft) => {
+      for (const collection of [draft.inbox, draft.search]) {
+        const task = collection.tasks.find((candidate) => candidate.id === taskId);
+
+        if (task) {
+          Object.assign(task, patch, { id: taskId });
+        }
+      }
+
+      if (draft.detail?.id === taskId) {
+        Object.assign(draft.detail, patch, { id: taskId });
+      }
+    });
+    return current;
+  }
+
+  removeTask(taskId: string): TaskRecord | null {
+    const current = this.getTask(taskId);
+
+    if (!current) {
+      return null;
+    }
+
+    this.update((draft) => {
+      draft.inbox.tasks = draft.inbox.tasks.filter((task) => task.id !== taskId);
+      draft.search.tasks = draft.search.tasks.filter((task) => task.id !== taskId);
+
+      if (draft.detail?.id === taskId) {
+        draft.detail = null;
+      }
+
+      delete draft.pendingById[taskId];
+    });
+    return current;
+  }
+
+  setPending(taskId: string, kind: TaskMutationKind | null): void {
+    const pendingById = this.getSnapshot().pendingById;
+
+    if (pendingById[taskId] === kind && kind !== null) {
+      return;
+    }
+
+    if (kind === null && !Object.prototype.hasOwnProperty.call(pendingById, taskId)) {
+      return;
+    }
+
+    this.update((draft) => {
+      if (kind === null) {
+        delete draft.pendingById[taskId];
+      } else {
+        draft.pendingById[taskId] = kind;
+      }
+    });
   }
 
   beginCompletion(
     taskId: string,
     completed: boolean,
-    sourceCollectionKey: string,
+    source: TaskCollectionKind,
   ): CompletionTransaction | null {
     const task = this.getTask(taskId);
 
@@ -236,13 +362,12 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
       });
     }
 
-    return Object.freeze({ task, summary, sourceCollectionKey });
+    return { task, summary, source };
   }
 
-  confirmCompletion(task: TaskRecord, sourceCollectionKey: string): void {
-    this.invalidateReads();
+  confirmCompletion(task: TaskRecord, source: TaskCollectionKind): void {
     this.upsertTask(task);
-    this.clearCollectionError(sourceCollectionKey);
+    this.clearCollectionError(source);
     this.setPending(task.id, null);
   }
 
@@ -253,326 +378,26 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
       this.setSummary(transaction.summary.data);
     }
 
-    this.failCollection(transaction.sourceCollectionKey, error, offline);
+    this.failCollection(transaction.source, error, offline);
     this.setPending(transaction.task.id, null);
   }
 
-  activateSearch(key: string): void {
-    if (this.#activeSearchKey === key) {
-      return;
-    }
-
-    this.#activeSearchKey = key;
-    const snapshot = this.getSnapshot();
-    const collections = Object.fromEntries(
-      Object.entries(snapshot.collections).filter(
-        ([collectionKey]) => collectionKey === INBOX_COLLECTION_KEY || collectionKey === key,
-      ),
-    );
-
-    if (Object.keys(collections).length !== Object.keys(snapshot.collections).length) {
-      this.publish(Object.freeze({ ...snapshot, collections: Object.freeze(collections) }));
-    }
-  }
-
-  beginCollection(key: string, status: "loading" | "refreshing" | "loading-more"): void {
-    const snapshot = this.getSnapshot();
-    const current = snapshot.collections[key] ?? emptyCollection();
+  beginSummary(status: "loading" | "refreshing"): void {
+    const current = this.getSummary();
 
     if (current.status === status && current.error === null && !current.offline) {
       return;
     }
 
-    const nextCollection: TaskCollection = Object.freeze({
-      ...current,
-      status,
-      error: null,
-      offline: false,
+    this.update((draft) => {
+      draft.summary.status = status;
+      draft.summary.error = null;
+      draft.summary.offline = false;
     });
-    this.publish(
-      Object.freeze({
-        ...snapshot,
-        collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
-      }),
-    );
-  }
-
-  replaceCollection(key: string, tasks: readonly TaskRecord[], nextCursor: string | null): void {
-    const snapshot = this.getSnapshot();
-    const byId = mergeEntities(snapshot.byId, tasks, snapshot.pendingById);
-    const ids = Object.freeze(tasks.map((task) => task.id));
-    const current = snapshot.collections[key];
-    const nextCollection: TaskCollection = Object.freeze({
-      ids: current && sameIds(current.ids, ids) ? current.ids : ids,
-      nextCursor,
-      status: "ready",
-      error: null,
-      offline: false,
-    });
-
-    if (
-      current &&
-      byId === snapshot.byId &&
-      current.ids === nextCollection.ids &&
-      current.nextCursor === nextCursor &&
-      current.status === "ready" &&
-      current.error === null &&
-      !current.offline
-    ) {
-      return;
-    }
-
-    this.publish(
-      Object.freeze({
-        ...snapshot,
-        byId,
-        collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
-      }),
-    );
-  }
-
-  appendCollection(key: string, tasks: readonly TaskRecord[], nextCursor: string | null): void {
-    const snapshot = this.getSnapshot();
-    const current = snapshot.collections[key] ?? emptyCollection();
-    const byId = mergeEntities(snapshot.byId, tasks, snapshot.pendingById);
-    const ids = [...current.ids];
-    const seen = new Set(ids);
-    for (const task of tasks) {
-      if (!seen.has(task.id)) {
-        seen.add(task.id);
-        ids.push(task.id);
-      }
-    }
-
-    const nextIds = sameIds(current.ids, ids) ? current.ids : Object.freeze(ids);
-    const nextCollection: TaskCollection = Object.freeze({
-      ids: nextIds,
-      nextCursor,
-      status: "ready",
-      error: null,
-      offline: false,
-    });
-
-    if (
-      byId === snapshot.byId &&
-      nextIds === current.ids &&
-      current.nextCursor === nextCursor &&
-      current.status === "ready" &&
-      current.error === null &&
-      !current.offline
-    ) {
-      return;
-    }
-
-    this.publish(
-      Object.freeze({
-        ...snapshot,
-        byId,
-        collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
-      }),
-    );
-  }
-
-  failCollection(key: string, error: string, offline: boolean): void {
-    const snapshot = this.getSnapshot();
-    const current = snapshot.collections[key] ?? emptyCollection();
-    const nextCollection: TaskCollection = Object.freeze({
-      ...current,
-      status: "error",
-      error,
-      offline,
-    });
-    this.publish(
-      Object.freeze({
-        ...snapshot,
-        collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
-      }),
-    );
-  }
-
-  clearCollectionError(key: string): void {
-    const snapshot = this.getSnapshot();
-    const current = snapshot.collections[key];
-
-    if (!current || (current.error === null && !current.offline)) {
-      return;
-    }
-
-    const nextCollection: TaskCollection = Object.freeze({
-      ...current,
-      status: "ready",
-      error: null,
-      offline: false,
-    });
-    this.publish(
-      Object.freeze({
-        ...snapshot,
-        collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
-      }),
-    );
-  }
-
-  settleCollection(key: string): void {
-    const snapshot = this.getSnapshot();
-    const current = snapshot.collections[key];
-
-    if (!current || (current.status === "ready" && current.error === null && !current.offline)) {
-      return;
-    }
-
-    const nextCollection: TaskCollection = Object.freeze({
-      ...current,
-      status: "ready",
-      error: null,
-      offline: false,
-    });
-    this.publish(
-      Object.freeze({
-        ...snapshot,
-        collections: Object.freeze({ ...snapshot.collections, [key]: nextCollection }),
-      }),
-    );
-  }
-
-  upsertTask(task: TaskRecord): void {
-    const snapshot = this.getSnapshot();
-    const byId = mergeEntities(snapshot.byId, [task]);
-
-    if (byId !== snapshot.byId) {
-      this.publish(Object.freeze({ ...snapshot, byId }));
-    }
-  }
-
-  prependToCollection(key: string, task: TaskRecord): void {
-    const snapshot = this.getSnapshot();
-    const current = snapshot.collections[key];
-    const byId = mergeEntities(snapshot.byId, [task]);
-
-    if (!current) {
-      if (byId !== snapshot.byId) {
-        this.publish(Object.freeze({ ...snapshot, byId }));
-      }
-
-      return;
-    }
-
-    const ids = Object.freeze([task.id, ...current.ids.filter((id) => id !== task.id)]);
-    this.publish(
-      Object.freeze({
-        ...snapshot,
-        byId,
-        collections: Object.freeze({
-          ...snapshot.collections,
-          [key]: Object.freeze({ ...current, ids }),
-        }),
-      }),
-    );
-  }
-
-  patchTask(taskId: string, patch: Partial<TaskRecord>): TaskRecord | null {
-    const snapshot = this.getSnapshot();
-    const current = snapshot.byId[taskId];
-
-    if (!current) {
-      return null;
-    }
-
-    const next = freezeTask({ ...current, ...patch, id: current.id });
-
-    if (taskEquals(current, next)) {
-      return current;
-    }
-
-    this.publish(
-      Object.freeze({
-        ...snapshot,
-        byId: Object.freeze({ ...snapshot.byId, [taskId]: next }),
-      }),
-    );
-    return current;
-  }
-
-  removeTask(taskId: string): TaskRecord | null {
-    const snapshot = this.getSnapshot();
-    const current = snapshot.byId[taskId];
-
-    if (!current) {
-      return null;
-    }
-
-    const byId = { ...snapshot.byId };
-    delete byId[taskId];
-    const collections = Object.fromEntries(
-      Object.entries(snapshot.collections).map(([key, collection]) => [
-        key,
-        collection.ids.includes(taskId)
-          ? Object.freeze({
-              ...collection,
-              ids: Object.freeze(collection.ids.filter((id) => id !== taskId)),
-            })
-          : collection,
-      ]),
-    );
-    const pendingById = { ...snapshot.pendingById };
-    delete pendingById[taskId];
-
-    this.publish(
-      Object.freeze({
-        ...snapshot,
-        byId: Object.freeze(byId),
-        collections: Object.freeze(collections),
-        pendingById: Object.freeze(pendingById),
-      }),
-    );
-    return current;
-  }
-
-  setPending(taskId: string, kind: TaskMutationKind | null): void {
-    const snapshot = this.getSnapshot();
-
-    if (kind === null && !(taskId in snapshot.pendingById)) {
-      return;
-    }
-
-    if (kind !== null && snapshot.pendingById[taskId] === kind) {
-      return;
-    }
-
-    const pendingById = { ...snapshot.pendingById };
-
-    if (kind === null) {
-      delete pendingById[taskId];
-    } else {
-      pendingById[taskId] = kind;
-    }
-
-    this.publish(Object.freeze({ ...snapshot, pendingById: Object.freeze(pendingById) }));
-  }
-
-  beginSummary(status: "loading" | "refreshing"): void {
-    const snapshot = this.getSnapshot();
-
-    if (
-      snapshot.summary.status === status &&
-      snapshot.summary.error === null &&
-      !snapshot.summary.offline
-    ) {
-      return;
-    }
-
-    const summary: TaskSummaryState = Object.freeze({
-      ...snapshot.summary,
-      status,
-      error: null,
-      offline: false,
-    });
-    this.publish(Object.freeze({ ...snapshot, summary }));
   }
 
   setSummary(data: TaskSummary): void {
-    const snapshot = this.getSnapshot();
-    const frozenData = Object.freeze({ ...data });
-    const current = snapshot.summary;
+    const current = this.getSummary();
 
     if (
       current.status === "ready" &&
@@ -585,56 +410,44 @@ export class TasksStore extends ExternalStore<TasksSnapshot> {
       return;
     }
 
-    const summary: TaskSummaryState = Object.freeze({
-      data: frozenData,
-      status: "ready",
-      error: null,
-      offline: false,
+    this.update((draft) => {
+      draft.summary.data = data;
+      draft.summary.status = "ready";
+      draft.summary.error = null;
+      draft.summary.offline = false;
     });
-    this.publish(Object.freeze({ ...snapshot, summary }));
   }
 
   failSummary(error: string, offline: boolean): void {
-    const snapshot = this.getSnapshot();
-    const summary: TaskSummaryState = Object.freeze({
-      ...snapshot.summary,
-      status: "error",
-      error,
-      offline,
+    this.update((draft) => {
+      draft.summary.status = "error";
+      draft.summary.error = error;
+      draft.summary.offline = offline;
     });
-    this.publish(Object.freeze({ ...snapshot, summary }));
   }
 
   settleSummary(): void {
-    const snapshot = this.getSnapshot();
+    const current = this.getSummary();
 
     if (
-      snapshot.summary.status === "idle" ||
-      (snapshot.summary.status === "ready" &&
-        snapshot.summary.error === null &&
-        !snapshot.summary.offline)
+      current.status === "idle" ||
+      (current.status === "ready" && current.error === null && !current.offline)
     ) {
       return;
     }
 
-    const summary: TaskSummaryState = Object.freeze({
-      ...snapshot.summary,
-      status: "ready",
-      error: null,
-      offline: false,
+    this.update((draft) => {
+      draft.summary.status = "ready";
+      draft.summary.error = null;
+      draft.summary.offline = false;
     });
-    this.publish(Object.freeze({ ...snapshot, summary }));
   }
 
   clear(): void {
-    this.#activeSearchKey = null;
     this.resetSnapshot();
   }
 
   resetForTests(): void {
-    this.#boundUserId = null;
-    this.#userGeneration = 0;
-    this.#readGeneration = 0;
     this.clear();
     this.clearListenersForTests();
   }

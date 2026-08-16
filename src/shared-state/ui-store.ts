@@ -7,7 +7,7 @@ export type TaskDialog =
 
 export type UiSnapshot = Readonly<{ taskDialog: TaskDialog }>;
 
-const SERVER_UI_SNAPSHOT: UiSnapshot = Object.freeze({ taskDialog: null });
+const SERVER_UI_SNAPSHOT: UiSnapshot = { taskDialog: null };
 
 export class UiStore extends ExternalStore<UiSnapshot> {
   constructor() {
@@ -19,7 +19,9 @@ export class UiStore extends ExternalStore<UiSnapshot> {
       return;
     }
 
-    this.publish(Object.freeze({ taskDialog: Object.freeze({ mode: "create" }) }));
+    this.update((draft) => {
+      draft.taskDialog = { mode: "create" };
+    });
   }
 
   openTask(taskId: string): void {
@@ -35,16 +37,16 @@ export class UiStore extends ExternalStore<UiSnapshot> {
       return;
     }
 
-    this.publish(
-      Object.freeze({
-        taskDialog: Object.freeze({ mode: "edit", taskId: normalizedTaskId }),
-      }),
-    );
+    this.update((draft) => {
+      draft.taskDialog = { mode: "edit", taskId: normalizedTaskId };
+    });
   }
 
   closeTask(): void {
     if (this.getSnapshot().taskDialog !== null) {
-      this.publish(SERVER_UI_SNAPSHOT);
+      this.update((draft) => {
+        draft.taskDialog = null;
+      });
     }
   }
 

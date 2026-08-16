@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { TextInput, useWindowDimensions } from "react-native";
+import { useMutative } from "use-mutative";
 
 import { getErrorMessage, type TaskDraft } from "@/platform";
 import { useTaskDetailController } from "@/modules/task-detail/task-detail-controller-context";
@@ -9,6 +10,12 @@ export type FormValues = { title: string; notes: string; dueDate: string };
 export type FieldErrors = Partial<Record<keyof FormValues, string>>;
 export type ConfirmationKind = "discard" | "delete" | null;
 const EMPTY_FORM: FormValues = { title: "", notes: "", dueDate: "" };
+type FormState = { values: FormValues; baseline: FormValues; fieldErrors: FieldErrors };
+const EMPTY_FORM_STATE: FormState = {
+  values: EMPTY_FORM,
+  baseline: EMPTY_FORM,
+  fieldErrors: {},
+};
 
 export function useTaskDetailForm() {
   const taskDetailController = useTaskDetailController();
@@ -19,15 +26,14 @@ export function useTaskDetailForm() {
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const confirmationTriggerRef = useRef<HTMLElement | null>(null);
   const requestIdRef = useRef(0);
-  const [values, setValues] = useState<FormValues>(EMPTY_FORM);
-  const [baseline, setBaseline] = useState<FormValues>(EMPTY_FORM);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [formState, updateFormState] = useMutative<FormState>(EMPTY_FORM_STATE);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadedTaskId, setLoadedTaskId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationKind>(null);
+  const { values, baseline, fieldErrors } = formState;
   const visible = taskDialog !== null;
   const editing = taskDialog?.mode === "edit";
   const taskId = editing ? taskDialog.taskId : null;
@@ -116,13 +122,15 @@ export function useTaskDetailForm() {
 
   const loadDialogTask = useEffectEvent((dialog: typeof taskDialog) => {
     const requestId = ++requestIdRef.current;
-    setFieldErrors({});
+    updateFormState((draft) => {
+      draft.values = { ...EMPTY_FORM };
+      draft.baseline = { ...EMPTY_FORM };
+      draft.fieldErrors = {};
+    });
     setRequestError(null);
     setConfirmation(null);
     confirmationTriggerRef.current = null;
     setLoadedTaskId(null);
-    setValues(EMPTY_FORM);
-    setBaseline(EMPTY_FORM);
 
     if (!dialog || dialog.mode === "create") {
       setLoading(false);
@@ -139,8 +147,10 @@ export function useTaskDetailForm() {
         notes: task.notes,
         dueDate: task.dueDate ?? "",
       };
-      setValues(nextValues);
-      setBaseline(nextValues);
+      updateFormState((draft) => {
+        draft.values = { ...nextValues };
+        draft.baseline = { ...nextValues };
+      });
       setLoadedTaskId(dialog.taskId);
     };
 
@@ -217,11 +227,10 @@ export function useTaskDetailForm() {
     requestClose();
   }
   function updateField(field: keyof FormValues, value: string) {
-    setValues((current) => ({ ...current, [field]: value }));
-
-    if (fieldErrors[field]) {
-      setFieldErrors((current) => ({ ...current, [field]: undefined }));
-    }
+    updateFormState((draft) => {
+      draft.values[field] = value;
+      delete draft.fieldErrors[field];
+    });
   }
   function validate() {
     const nextErrors: FieldErrors = {};
@@ -242,7 +251,9 @@ export function useTaskDetailForm() {
       nextErrors.dueDate = "Use a real date in YYYY-MM-DD format.";
     }
 
-    setFieldErrors(nextErrors);
+    updateFormState((draft) => {
+      draft.fieldErrors = nextErrors;
+    });
     return Object.keys(nextErrors).length === 0;
   }
   async function save() {

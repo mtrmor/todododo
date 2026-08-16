@@ -11,7 +11,6 @@ import { SearchController } from "@/modules/search/search-controller";
 import { SidebarController } from "@/modules/sidebar/sidebar-controller";
 import { TaskDetailController } from "@/modules/task-detail/task-detail-controller";
 import { TaskListController } from "@/modules/task-list/task-list-controller";
-import { INBOX_COLLECTION_KEY, searchCollectionKey } from "@/shared-state";
 import { TaskInvalidationBus, TasksStore } from "@/shared-state/internal";
 
 vi.mock("@/platform/lifecycle/active-refresh", () => ({
@@ -70,7 +69,6 @@ describe("module-owned task controllers", () => {
 
   it("deduplicates Inbox loads, appends pagination and cleans lifecycle", async () => {
     const store = new TasksStore();
-    store.bindUser("user-a");
     const api = collectionApi();
     const first = deferred<TaskPage>();
     api.getTasks.mockImplementationOnce(() => first.promise);
@@ -86,15 +84,14 @@ describe("module-owned task controllers", () => {
     await duplicate;
     api.getTasks.mockResolvedValueOnce({ items: [task("extra")], nextCursor: null });
     await controller.loadMore();
-    expect(store.getCollection(INBOX_COLLECTION_KEY).ids.at(-1)).toBe("extra");
+    expect(store.getCollection("inbox").tasks.at(-1)?.id).toBe("extra");
     stop();
     expect(stopLifecycle).toHaveBeenCalledOnce();
   });
 
   it("rolls optimistic Inbox completion back after failure", async () => {
     const store = new TasksStore();
-    store.bindUser("user-a");
-    store.replaceCollection(INBOX_COLLECTION_KEY, [task("one")], null);
+    store.replaceCollection("inbox", [task("one")], null);
     store.setSummary({ open: 1, total: 1, completed: 0 });
     const api = collectionApi();
     api.setTaskCompleted.mockRejectedValueOnce(new Error("offline"));
@@ -106,9 +103,8 @@ describe("module-owned task controllers", () => {
     expect(store.getSummary().data.open).toBe(1);
   });
 
-  it("cancels stale Search and keeps only the active result collection", async () => {
+  it("cancels stale Search and keeps only the active result", async () => {
     const store = new TasksStore();
-    store.bindUser("user-a");
     const api = collectionApi();
     const stale = deferred<TaskPage>();
     api.getTasks
@@ -120,28 +116,50 @@ describe("module-owned task controllers", () => {
     await controller.load("initial");
     stale.resolve({ items: [task("stale")], nextCursor: null });
     await Promise.resolve();
-    expect(store.getSnapshot().collections[searchCollectionKey("old")]).toBeUndefined();
-    expect(store.getCollection(searchCollectionKey("new")).ids).toEqual(["fresh"]);
+    expect(store.getSnapshot().search.query).toBe("new");
+    expect(store.getCollection("search").tasks.map((item) => item.id)).toEqual(["fresh"]);
     expect(store.getTask("stale")).toBeNull();
   });
 
-  it("loads summary but ignores a response from the previous user", async () => {
+  it("aborts an invalidated collection request and applies the replacement refresh", async () => {
     const store = new TasksStore();
-    store.bindUser("user-a");
-    const response = deferred<{ open: number; total: number; completed: number }>();
-    const api = { getTaskSummary: vi.fn(() => response.promise) };
-    const controller = new SidebarController(store, invalidationBus, api, noLifecycle);
-    const request = controller.load("initial");
-    store.bindUser("user-b");
-    response.resolve({ open: 9, total: 9, completed: 0 });
-    await request;
-    expect(store.getSummary().status).toBe("idle");
+    const api = collectionApi();
+    const stale = deferred<TaskPage>();
+    api.getTasks
+      .mockImplementationOnce(() => stale.promise)
+      .mockResolvedValueOnce({ items: [task("fresh")], nextCursor: null });
+    const controller = new TaskListController(store, invalidationBus, api, noLifecycle);
+    const stop = controller.connect();
+    invalidationBus.publish();
+    await controller.load("refresh");
+    stale.resolve({ items: [task("stale")], nextCursor: null });
+    await Promise.resolve();
+    expect(store.getCollection("inbox").tasks.map((item) => item.id)).toEqual(["fresh"]);
+    stop();
   });
 
-  it("reconciles Task Detail create, update and delete without exporting its controller", async () => {
+  it("restarts a stale summary read after invalidation", async () => {
     const store = new TasksStore();
-    store.bindUser("user-a");
-    store.replaceCollection(INBOX_COLLECTION_KEY, [task("one")], null);
+    const stale = deferred<{ open: number; total: number; completed: number }>();
+    const api = {
+      getTaskSummary: vi
+        .fn()
+        .mockImplementationOnce(() => stale.promise)
+        .mockResolvedValueOnce({ open: 1, total: 1, completed: 0 }),
+    };
+    const controller = new SidebarController(store, invalidationBus, api, noLifecycle);
+    const stop = controller.connect();
+    invalidationBus.publish();
+    await controller.load("refresh");
+    stale.resolve({ open: 9, total: 9, completed: 0 });
+    await Promise.resolve();
+    expect(store.getSummary().data).toEqual({ open: 1, total: 1, completed: 0 });
+    stop();
+  });
+
+  it("reconciles Task Detail create, update and delete", async () => {
+    const store = new TasksStore();
+    store.replaceCollection("inbox", [task("one")], null);
     store.setSummary({ open: 1, total: 1, completed: 0 });
     const api = {
       getTask: vi.fn(async (taskId: string, _options: RequestOptions = {}) => task(taskId)),
@@ -153,7 +171,7 @@ describe("module-owned task controllers", () => {
     await controller.create({ title: "Created", notes: "", dueDate: null });
     await controller.update("one", { title: "Updated", notes: "Note", dueDate: null });
     await controller.delete("one");
-    expect(store.getCollection(INBOX_COLLECTION_KEY).ids).toEqual(["new"]);
+    expect(store.getCollection("inbox").tasks.map((item) => item.id)).toEqual(["new"]);
     expect(store.getTask("one")).toBeNull();
     expect(store.getSummary().data.total).toBe(1);
   });

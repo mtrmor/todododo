@@ -18,12 +18,14 @@ export type TaskCollectionStatus =
   | "error";
 
 export type TaskCollection = Readonly<{
-  ids: readonly string[];
+  tasks: readonly TaskRecord[];
   nextCursor: string | null;
   status: TaskCollectionStatus;
   error: string | null;
   offline: boolean;
 }>;
+
+export type SearchTaskCollection = TaskCollection & Readonly<{ query: string }>;
 
 export type TaskMutationKind = "complete" | "update" | "delete";
 
@@ -35,8 +37,9 @@ export type TaskSummaryState = Readonly<{
 }>;
 
 export type TasksSnapshot = Readonly<{
-  byId: Readonly<Record<string, TaskRecord>>;
-  collections: Readonly<Record<string, TaskCollection>>;
+  inbox: TaskCollection;
+  search: SearchTaskCollection;
+  detail: TaskRecord | null;
   summary: TaskSummaryState;
   pendingById: Readonly<Record<string, TaskMutationKind>>;
 }>;
@@ -51,12 +54,8 @@ export type TaskCollectionView = Readonly<{
 
 export type TaskSummaryView = TaskSummaryState;
 
-export const INBOX_COLLECTION_KEY = "inbox";
+export type TaskCollectionKind = "inbox" | "search";
 
 export function normalizeSearchQuery(query: string): string {
   return query.trim().toLowerCase();
-}
-
-export function searchCollectionKey(query: string): string {
-  return `search:${normalizeSearchQuery(query)}`;
 }

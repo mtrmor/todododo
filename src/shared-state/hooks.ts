@@ -2,8 +2,7 @@ import { useMemo } from "react";
 import { useSyncExternalStoreWithSelector } from "use-sync-external-store/with-selector";
 
 import {
-  INBOX_COLLECTION_KEY,
-  searchCollectionKey,
+  normalizeSearchQuery,
   type TaskCollection,
   type TaskCollectionView,
   type TaskMutationKind,
@@ -14,34 +13,20 @@ import {
 import { useTaskStore, useUiStore } from "@/shared-state/store-context";
 import type { TaskDialog, UiSnapshot } from "@/shared-state/ui-store";
 
-const EMPTY_IDS: readonly string[] = Object.freeze([]);
-const EMPTY_COLLECTION: TaskCollection = Object.freeze({
-  ids: EMPTY_IDS,
+const EMPTY_COLLECTION: TaskCollection = {
+  tasks: [],
   nextCursor: null,
   status: "idle",
   error: null,
   offline: false,
-});
+};
 
-function selectCollection(snapshot: TasksSnapshot, key: string): TaskCollectionView {
-  const collection = snapshot.collections[key] ?? EMPTY_COLLECTION;
-  return {
-    tasks: collection.ids.flatMap((id) => (snapshot.byId[id] ? [snapshot.byId[id]] : [])),
-    nextCursor: collection.nextCursor,
-    status: collection.status,
-    error: collection.error,
-    offline: collection.offline,
-  };
-}
-
-function equalTaskCollectionView(left: TaskCollectionView, right: TaskCollectionView): boolean {
+function selectTask(snapshot: TasksSnapshot, taskId: string): TaskRecord | null {
   return (
-    left.nextCursor === right.nextCursor &&
-    left.status === right.status &&
-    left.error === right.error &&
-    left.offline === right.offline &&
-    left.tasks.length === right.tasks.length &&
-    left.tasks.every((task, index) => task === right.tasks[index])
+    (snapshot.detail?.id === taskId ? snapshot.detail : null) ??
+    snapshot.inbox.tasks.find((task) => task.id === taskId) ??
+    snapshot.search.tasks.find((task) => task.id === taskId) ??
+    null
   );
 }
 
@@ -73,19 +58,18 @@ export function useTaskDialog(): TaskDialog {
 }
 
 export function useTask(taskId: string | null): TaskRecord | null {
-  return useTasksSelector((snapshot) => (taskId ? (snapshot.byId[taskId] ?? null) : null));
+  return useTasksSelector((snapshot) => (taskId ? selectTask(snapshot, taskId) : null));
 }
 
 export function useInboxTasks(): TaskCollectionView {
-  return useTasksSelector(
-    (snapshot) => selectCollection(snapshot, INBOX_COLLECTION_KEY),
-    equalTaskCollectionView,
-  );
+  return useTasksSelector((snapshot) => snapshot.inbox);
 }
 
 export function useSearchTasks(query: string): TaskCollectionView {
-  const key = searchCollectionKey(query);
-  return useTasksSelector((snapshot) => selectCollection(snapshot, key), equalTaskCollectionView);
+  const normalized = normalizeSearchQuery(query);
+  return useTasksSelector((snapshot) =>
+    snapshot.search.query === normalized ? snapshot.search : EMPTY_COLLECTION,
+  );
 }
 
 export function useTaskSummary(): TaskSummaryView {

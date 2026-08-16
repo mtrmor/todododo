@@ -1,6 +1,5 @@
 import { createTask, deleteTask, getTask, updateTask } from "@/platform/api/tasks";
 import type { TaskDraft, TaskRecord, TaskSummary } from "@/domain/tasks";
-import { INBOX_COLLECTION_KEY } from "@/shared-state";
 import type { TaskInvalidationBus, TasksStore } from "@/shared-state/internal";
 
 type TaskDetailApi = Readonly<{
@@ -50,12 +49,12 @@ export class TaskDetailController {
 
     this.cancelLoad();
     const controller = new AbortController();
-    const token = this.store.captureReadToken();
     const promise = this.api
       .getTask(normalizedId, { signal: controller.signal })
       .then((task) => {
-        if (!controller.signal.aborted && this.store.isReadTokenCurrent(token)) {
+        if (!controller.signal.aborted) {
           this.store.upsertTask(task);
+          this.store.setDetail(task);
         }
 
         return task;
@@ -75,66 +74,50 @@ export class TaskDetailController {
   }
 
   async create(draft: TaskDraft): Promise<TaskRecord> {
-    const generation = this.store.captureUserGeneration();
     const task = await this.api.createTask(draft);
 
-    if (this.store.isUserGenerationCurrent(generation)) {
-      this.store.invalidateReads();
-      this.store.prependToCollection(INBOX_COLLECTION_KEY, task);
-      const summary = this.store.getSummary();
+    this.store.prependToInbox(task);
+    const summary = this.store.getSummary();
 
-      if (summary.status !== "idle") {
-        this.store.setSummary(addToSummary(summary.data, task));
-      }
-
-      this.invalidationBus.publish();
+    if (summary.status !== "idle") {
+      this.store.setSummary(addToSummary(summary.data, task));
     }
+
+    this.invalidationBus.publish();
 
     return task;
   }
 
   async update(taskId: string, draft: TaskDraft): Promise<TaskRecord> {
-    const generation = this.store.captureUserGeneration();
     this.store.setPending(taskId, "update");
     try {
       const task = await this.api.updateTask(taskId, draft);
 
-      if (this.store.isUserGenerationCurrent(generation)) {
-        this.store.invalidateReads();
-        this.store.upsertTask(task);
-        this.invalidationBus.publish();
-      }
+      this.store.upsertTask(task);
+      this.invalidationBus.publish();
 
       return task;
     } finally {
-      if (this.store.isUserGenerationCurrent(generation)) {
-        this.store.setPending(taskId, null);
-      }
+      this.store.setPending(taskId, null);
     }
   }
 
   async delete(taskId: string): Promise<void> {
-    const generation = this.store.captureUserGeneration();
     const previous = this.store.getTask(taskId);
     this.store.setPending(taskId, "delete");
     try {
       await this.api.deleteTask(taskId);
 
-      if (this.store.isUserGenerationCurrent(generation)) {
-        this.store.invalidateReads();
-        this.store.removeTask(taskId);
-        const summary = this.store.getSummary();
+      this.store.removeTask(taskId);
+      const summary = this.store.getSummary();
 
-        if (previous && summary.status !== "idle") {
-          this.store.setSummary(removeFromSummary(summary.data, previous));
-        }
-
-        this.invalidationBus.publish();
+      if (previous && summary.status !== "idle") {
+        this.store.setSummary(removeFromSummary(summary.data, previous));
       }
+
+      this.invalidationBus.publish();
     } finally {
-      if (this.store.isUserGenerationCurrent(generation)) {
-        this.store.setPending(taskId, null);
-      }
+      this.store.setPending(taskId, null);
     }
   }
 }

@@ -1,9 +1,0 @@
-[mcp_servers.context7]
-command = "npx"
-args = ["-y", "@upstash/context7-mcp", "--api-key", "ctx7sk-03244eb4-b3c3-4926-9a0d-b8a913333f76"]
-
-[features]
-multi_agent = true
-
-[tui]
-status_line = ["model-with-reasoning", "model-name", "context-used", "five-hour-limit", "fast-mode"]
